@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, ActId, GameProgress, AstraId, SiddhiId, CharacterId, CharacterStats } from './types';
+import type { GameState, ActId, AstraId, SiddhiId, CharacterId, CharacterStats } from './types';
 import { CHARACTERS } from './characters';
 import { LEVELS } from './levels';
 
@@ -25,7 +25,7 @@ interface GameStore {
   isBossFight: boolean;
   selectedAstra: AstraId | null;
   activeSiddhi: SiddhiId | null;
-  
+
   setGameState: (state: GameState) => void;
   startGame: () => void;
   startLevel: (levelId: string) => void;
@@ -49,7 +49,31 @@ interface GameStore {
   resetGame: () => void;
 }
 
-const initialProgress: Partial<GameStore> = {
+type GameStoreInitialState = Pick<
+  GameStore,
+  | 'gameState'
+  | 'currentAct'
+  | 'currentLevelIndex'
+  | 'activeCharacter'
+  | 'dharmaScore'
+  | 'karmaWeight'
+  | 'unlockedAstras'
+  | 'unlockedSiddhis'
+  | 'defeatedBosses'
+  | 'completedLevels'
+  | 'narrative'
+  | 'showCutscene'
+  | 'cutsceneText'
+  | 'cutsceneSpeaker'
+  | 'bossHp'
+  | 'bossMaxHp'
+  | 'bossName'
+  | 'isBossFight'
+  | 'selectedAstra'
+  | 'activeSiddhi'
+>;
+
+const initialProgress: GameStoreInitialState = {
   gameState: 'MENU',
   currentAct: 'ACT1',
   currentLevelIndex: 0,
@@ -99,10 +123,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startLevel: (levelId) => {
     const level = LEVELS.find(l => l.id === levelId);
     if (!level) return;
-    
+
     const bossId = level.bossId;
     const bossChar = bossId ? CHARACTERS[bossId] : null;
-    
+
     set({
       gameState: 'CUTSCENE',
       showCutscene: true,
@@ -118,20 +142,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   completeLevel: (levelId) => {
     const level = LEVELS.find(l => l.id === levelId);
     const { completedLevels, currentLevelIndex, currentAct } = get();
-    
+
     if (!completedLevels.includes(levelId)) {
       const newCompleted = [...completedLevels, levelId];
       const actLevels = LEVELS.filter(l => l.actId === currentAct);
       const nextIndex = currentLevelIndex + 1;
-      
+
       set({
         completedLevels: newCompleted,
         currentLevelIndex: nextIndex < actLevels.length ? nextIndex : currentLevelIndex,
       });
 
       if (level?.completionReward) {
-        const { dharma, astra, siddhi } = level.completionReward;
+        const { dharma, karmaWeight, astra, siddhi } = level.completionReward;
         if (dharma) get().gainDharma(dharma);
+        if (karmaWeight) get().addKarmaWeight(karmaWeight);
         if (astra) get().unlockAstra(astra);
         if (siddhi) get().unlockSiddhi(siddhi);
       }

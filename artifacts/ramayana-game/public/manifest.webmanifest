@@ -1,0 +1,16 @@
+{
+    "name": "Epic Ramayana",
+    "short_name": "Ramayana",
+    "description": "Ramayana 3D action RPG experience.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#0f3460",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

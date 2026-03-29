@@ -79,7 +79,11 @@ export default function GameCanvas() {
 
   const store = useGameStore();
 
+  const isFiniteCoord = (value: number) => Number.isFinite(value) && !Number.isNaN(value);
+
   const spawnParticles = useCallback((x: number, y: number, color: string, count = 12, speed = 4) => {
+    if (!isFiniteCoord(x) || !isFiniteCoord(y)) return;
+
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
       particlesRef.current.push({
@@ -95,6 +99,8 @@ export default function GameCanvas() {
   }, []);
 
   const spawnBossParticles = useCallback((x: number, y: number, color: string) => {
+    if (!isFiniteCoord(x) || !isFiniteCoord(y)) return;
+
     spawnParticles(x, y, color, 40, 10);
     for (let i = 0; i < 20; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -169,7 +175,7 @@ export default function GameCanvas() {
           characterId: e.characterId
         };
       });
-    
+
     playerRef.current = { x: 0, z: 50, facing: 0, shootCooldown: 0, invincible: 0 };
   }, [store.gameState, store.currentAct, store.defeatedBosses]);
 
@@ -232,7 +238,7 @@ export default function GameCanvas() {
       // Draw background as CSS gradient approximation
       const bgImg = new Image();
       ctx.save();
-      
+
       // Sky gradient
       const sky = ctx.createLinearGradient(0, 0, 0, H * 0.6);
       if (envType === 'AYODHYA') {
@@ -312,17 +318,19 @@ export default function GameCanvas() {
         p.shootCooldown = 20;
         const selectedAstra = store.selectedAstra || 'AGNEYASTRA';
         const astraConfig = ASTRA_CONFIGS[selectedAstra as keyof typeof ASTRA_CONFIGS] || ASTRA_CONFIGS.AGNEYASTRA;
-        
+
         // Find nearest enemy
         let nearestEnemy = entitiesRef.current.find(e => e.hp > 0);
         let aimVx = 0, aimVz = -8;
         if (nearestEnemy) {
           const dx = nearestEnemy.x - p.x;
           const dz = nearestEnemy.z - p.z;
-          const dist = Math.sqrt(dx*dx + dz*dz);
-          aimVx = (dx / dist) * 8;
-          aimVz = (dz / dist) * 8;
-          p.facing = Math.atan2(dx, -dz);
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > 0.001) {
+            aimVx = (dx / dist) * 8;
+            aimVz = (dz / dist) * 8;
+            p.facing = Math.atan2(dx, -dz);
+          }
         }
 
         astrasRef.current.push({
@@ -345,7 +353,12 @@ export default function GameCanvas() {
         astra.x += astra.vx;
         astra.z += astra.vz;
         astra.life--;
-        
+
+        if (!isFiniteCoord(astra.x) || !isFiniteCoord(astra.z)) {
+          astra.life = 0;
+          continue;
+        }
+
         spawnParticles(
           ...worldToScreenArr(astra.x, astra.z, W, H),
           astra.color, 2, 2
@@ -355,17 +368,17 @@ export default function GameCanvas() {
           if (entity.hp <= 0) continue;
           const dx = entity.x - astra.x;
           const dz = entity.z - astra.z;
-          if (Math.sqrt(dx*dx + dz*dz) < entity.size * 0.8) {
+          if (Math.sqrt(dx * dx + dz * dz) < entity.size * 0.8) {
             entity.hp = Math.max(0, entity.hp - astra.damage);
             astra.life = 0;
             spawnBossParticles(...worldToScreenArr(entity.x, entity.z, W, H), astra.color);
-            
+
             if (entity.hp <= 0 && entity.characterId) {
               store.defeatBoss(entity.characterId as CharacterId);
               store.gainDharma(20);
               spawnBossParticles(...worldToScreenArr(entity.x, entity.z, W, H), '#FFD700');
             }
-            
+
             if (store.isBossFight && entity.type === 'boss') {
               const killed = store.damageBoss(astra.damage);
               if (killed) {
@@ -383,9 +396,9 @@ export default function GameCanvas() {
         if (entity.hp <= 0) continue;
         const dx = p.x - entity.x;
         const dz = p.z - entity.z;
-        const dist = Math.sqrt(dx*dx + dz*dz);
+        const dist = Math.sqrt(dx * dx + dz * dz);
 
-        if (dist < 200) {
+        if (dist < 200 && dist > 0.001) {
           entity.state = 'COMBAT';
           const speed = entity.type === 'boss' ? 1 : 1.5;
           entity.vx = (dx / dist) * speed;
@@ -438,9 +451,9 @@ export default function GameCanvas() {
         const barW = size * 3;
         const barH = 5 * scale;
         ctx.fillStyle = '#222';
-        ctx.fillRect(sx - barW/2, sy - size - 10 * scale, barW, barH);
+        ctx.fillRect(sx - barW / 2, sy - size - 10 * scale, barW, barH);
         ctx.fillStyle = hpRatio > 0.5 ? '#0f0' : hpRatio > 0.25 ? '#ff0' : '#f00';
-        ctx.fillRect(sx - barW/2, sy - size - 10 * scale, barW * hpRatio, barH);
+        ctx.fillRect(sx - barW / 2, sy - size - 10 * scale, barW * hpRatio, barH);
 
         // Name tag
         if (entity.type === 'boss') {
@@ -470,19 +483,22 @@ export default function GameCanvas() {
       // Draw astra projectiles
       for (const astra of astrasRef.current) {
         const { sx: ax, sy: ay } = worldToScreen(astra.x, astra.z, W, H);
-        const aScale = getScale(astra.z, H);
-        const aConfig = ASTRA_CONFIGS[astra.type as keyof typeof ASTRA_CONFIGS] || ASTRA_CONFIGS.AGNEYASTRA;
+        if (!isFiniteCoord(ax) || !isFiniteCoord(ay)) continue;
+
+        const aScale = Math.max(0.05, getScale(astra.z, H));
+        const glowRadius = Math.max(0.1, 12 * aScale);
+        if (!isFiniteCoord(glowRadius)) continue;
 
         ctx.save();
         ctx.shadowColor = astra.color;
         ctx.shadowBlur = 20;
-        const ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, 12 * aScale);
+        const ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, glowRadius);
         ag.addColorStop(0, '#fff');
         ag.addColorStop(0.3, astra.color);
         ag.addColorStop(1, 'transparent');
         ctx.fillStyle = ag;
         ctx.beginPath();
-        ctx.arc(ax, ay, 12 * aScale, 0, Math.PI * 2);
+        ctx.arc(ax, ay, glowRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -494,13 +510,18 @@ export default function GameCanvas() {
         pt.x += pt.vx;
         pt.y += pt.vy;
         pt.vy += 0.2;
-        pt.life -= 0.03;
+        pt.life = Math.max(0, pt.life - 0.03);
+        if (pt.life <= 0) continue;
+
+        const radius = Math.max(0.1, pt.size * pt.life);
+        if (!isFiniteCoord(pt.x) || !isFiniteCoord(pt.y) || !isFiniteCoord(radius)) continue;
+
         ctx.globalAlpha = pt.life;
         ctx.fillStyle = pt.color;
         ctx.shadowColor = pt.color;
         ctx.shadowBlur = 8;
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.size * pt.life, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
@@ -518,7 +539,7 @@ export default function GameCanvas() {
   return (
     <div className="relative w-full h-full">
       <canvas ref={canvasRef} className="w-full h-full" style={{ display: 'block' }} />
-      
+
       {showControls && store.gameState === 'PLAYING' && (
         <div className="absolute bottom-32 left-4 bg-black/70 text-yellow-300 text-xs p-2 rounded border border-yellow-800 font-mono">
           <div className="font-bold text-yellow-400 mb-1">CONTROLS</div>
@@ -536,7 +557,16 @@ function worldToScreen(wx: number, wz: number, W: number, H: number) {
   const perspective = 400;
   const cameraZ = 150;
   const cameraY = 80;
-  const scale = perspective / (perspective + wz + cameraZ);
+  const denominator = perspective + wz + cameraZ;
+  if (!Number.isFinite(denominator) || denominator <= 1) {
+    return { sx: Number.NaN, sy: Number.NaN };
+  }
+
+  const scale = perspective / denominator;
+  if (!Number.isFinite(scale)) {
+    return { sx: Number.NaN, sy: Number.NaN };
+  }
+
   const sx = W / 2 + wx * scale;
   const sy = H * 0.6 - (cameraY * scale) + (wz + cameraZ) * 0.15 * scale;
   return { sx, sy };
@@ -550,7 +580,12 @@ function worldToScreenArr(wx: number, wz: number, W: number, H: number): [number
 function getScale(wz: number, H: number) {
   const perspective = 400;
   const cameraZ = 150;
-  return perspective / (perspective + wz + cameraZ);
+  const denominator = perspective + wz + cameraZ;
+  if (!Number.isFinite(denominator) || denominator <= 1) {
+    return 0.05;
+  }
+
+  return perspective / denominator;
 }
 
 function drawEnvironment(ctx: CanvasRenderingContext2D, W: number, H: number, env: string, t: number, accent: string) {

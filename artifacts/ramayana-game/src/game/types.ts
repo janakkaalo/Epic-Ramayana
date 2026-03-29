@@ -1,4 +1,4 @@
-export type GameState = 
+export type GameState =
   | 'MENU'
   | 'CUTSCENE'
   | 'PLAYING'
@@ -10,7 +10,7 @@ export type GameState =
 
 export type ActId = 'ACT1' | 'ACT2' | 'ACT3' | 'ACT4' | 'ACT5';
 
-export type CharacterId = 
+export type CharacterId =
   | 'RAMA'
   | 'HANUMAN'
   | 'LAKSHMANA'
@@ -24,17 +24,18 @@ export type CharacterId =
   | 'KUMBHAKARNA'
   | 'MARICHA';
 
-export type AstraId = 
+export type AstraId =
   | 'BRAHMASTRA'
   | 'AGNEYASTRA'
   | 'VARUNASTRA'
   | 'VAYAVYASTRA'
+  | 'NAGASTRA'
   | 'PASHUPATASTRA'
   | 'NARAYAN_ASTRA'
   | 'MOHINI_ASTRA'
   | 'BAJRANG_ASTRA';
 
-export type SiddhiId = 
+export type SiddhiId =
   | 'ANIMA'
   | 'MAHIMA'
   | 'GARIMA'
@@ -126,6 +127,7 @@ export interface Level {
   narrative: string;
   completionReward?: {
     dharma?: number;
+    karmaWeight?: number;
     astra?: AstraId;
     siddhi?: SiddhiId;
   };

@@ -7,6 +7,7 @@ const ASTRA_ICONS: Record<AstraId, string> = {
   AGNEYASTRA: '🔥',
   VARUNASTRA: '💧',
   VAYAVYASTRA: '🌀',
+  NAGASTRA: '🐍',
   PASHUPATASTRA: '☄',
   NARAYAN_ASTRA: '⚡',
   MOHINI_ASTRA: '💜',
@@ -18,6 +19,7 @@ const ASTRA_COLORS: Record<AstraId, string> = {
   AGNEYASTRA: '#FF4500',
   VARUNASTRA: '#00BFFF',
   VAYAVYASTRA: '#E0E0E0',
+  NAGASTRA: '#32CD32',
   PASHUPATASTRA: '#9400D3',
   NARAYAN_ASTRA: '#00FF7F',
   MOHINI_ASTRA: '#FF69B4',
@@ -84,7 +86,7 @@ export default function HUD() {
 
         {/* HP Bar */}
         <StatBar label="HP" current={player.hp} max={player.maxHp} color={hpColor} icon="❤" />
-        
+
         {/* Mana Bar */}
         <StatBar label="MP" current={player.mana} max={player.maxMana} color={manaColor} icon="✦" />
       </div>
