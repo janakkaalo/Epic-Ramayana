@@ -93,24 +93,68 @@ export class Level05_TatakasTerror extends Phaser.Scene {
   private createBackground(): void {
     const { width, height } = this.cameras.main;
 
-    // Dark sky
-    this.add.rectangle(0, 0, width * 2, height, 0x1a1a2e).setOrigin(0);
+    // Dark ominous sky with gradient
+    const sky = this.add.graphics();
+    sky.fillGradientStyle(0x0a0a1a, 0x0a0a1a, 0x2d1a00, 0x440000, 1);
+    sky.fillRect(0, 0, width * 2, height);
+    sky.setDepth(-100);
 
-    // Lightning effects (occasional)
+    // Storm clouds
+    for (let i = 0; i < 5; i++) {
+      const cloudX = Phaser.Math.Between(0, width * 2);
+      const cloudY = Phaser.Math.Between(20, 150);
+      this.createStormCloud(cloudX, cloudY);
+    }
+
+    // Lightning flash periodically
     this.time.addEvent({
-      delay: 4000,
+      delay: Phaser.Math.Between(3000, 7000),
       callback: () => {
         this.flashLightning();
       },
       loop: true,
     });
 
-    // Fog overlay
+    // Fog/mist overlay
     const fog = this.add.graphics();
-    fog.fillStyle(0x888888, 0.2);
+    fog.fillStyle(0x888888, 0.15);
     fog.fillRect(0, 0, width * 2, height);
     fog.setDepth(5);
     fog.setScrollFactor(1);
+
+    // Animated fog movement
+    this.tweens.add({
+      targets: fog,
+      x: -100,
+      duration: 8000,
+      repeat: -1,
+      yoyo: true,
+    });
+  }
+
+  /**
+   * Create storm cloud
+   */
+  private createStormCloud(x: number, y: number): void {
+    const cloud = this.add.graphics();
+    cloud.fillStyle(0x333333, 0.7);
+
+    // Cloud shape
+    cloud.fillCircle(x - 40, y, 35);
+    cloud.fillCircle(x, y - 20, 40);
+    cloud.fillCircle(x + 40, y, 35);
+
+    cloud.setDepth(4);
+    cloud.setScrollFactor(1);
+
+    // Animate cloud movement
+    this.tweens.add({
+      targets: cloud,
+      x: x + 200,
+      duration: 10000,
+      repeat: -1,
+      yoyo: true,
+    });
   }
 
   /**
@@ -168,14 +212,87 @@ export class Level05_TatakasTerror extends Phaser.Scene {
 
     // Draw boss using graphics (fierce demon form)
     const bossGraphic = this.add.graphics();
+
+    // Tataka - female asura with demonic features
+    // Main torso
     bossGraphic.fillStyle(0x8b0000, 1); // Dark red
     bossGraphic.fillRect(width / 2 - 40, 250 - 60, 80, 120);
-    bossGraphic.fillCircle(width / 2, 250 - 70, 30); // Head
 
-    // Eyes
+    // Head with crown
+    bossGraphic.fillCircle(width / 2, 250 - 70, 32);
+
+    // Eyes (glowing demonic)
+    bossGraphic.fillStyle(0xff0000, 1);
+    bossGraphic.fillCircle(width / 2 - 15, 250 - 75, 10);
+    bossGraphic.fillCircle(width / 2 + 15, 250 - 75, 10);
+
+    // Pupils
     bossGraphic.fillStyle(0xffff00, 1);
-    bossGraphic.fillCircle(width / 2 - 15, 250 - 75, 8);
-    bossGraphic.fillCircle(width / 2 + 15, 250 - 75, 8);
+    bossGraphic.fillCircle(width / 2 - 15, 250 - 75, 5);
+    bossGraphic.fillCircle(width / 2 + 15, 250 - 75, 5);
+
+    // Horns (curved and menacing)
+    bossGraphic.lineStyle(4, 0x2a1810);
+    bossGraphic.lineBetween(
+      width / 2 - 20,
+      250 - 100,
+      width / 2 - 45,
+      250 - 140,
+    );
+    bossGraphic.lineBetween(
+      width / 2 + 20,
+      250 - 100,
+      width / 2 + 45,
+      250 - 140,
+    );
+
+    bossGraphic.beginPath();
+    bossGraphic.moveTo(width / 2 + 20, 250 - 100);
+    bossGraphic.quadraticCurveTo(
+      width / 2 + 40,
+      250 - 120,
+      width / 2 + 45,
+      250 - 140,
+    );
+    bossGraphic.stroke();
+
+    // Arms (muscular and clawed)
+    bossGraphic.fillStyle(0x5a1818, 1);
+    bossGraphic.fillRect(width / 2 - 60, 250 - 50, 20, 80);
+    bossGraphic.fillRect(width / 2 + 40, 250 - 50, 20, 80);
+
+    // Claws
+    bossGraphic.lineStyle(3, 0xff6600);
+    for (let i = 0; i < 3; i++) {
+      bossGraphic.lineBetween(
+        width / 2 - 60 + i * 8,
+        250 + 30,
+        width / 2 - 65 + i * 8,
+        250 + 45,
+      );
+      bossGraphic.lineBetween(
+        width / 2 + 60 + i * 8,
+        250 + 30,
+        width / 2 + 55 + i * 8,
+        250 + 45,
+      );
+    }
+
+    // Crown/tiara on head
+    bossGraphic.lineStyle(2, 0xffd700);
+    bossGraphic.beginPath();
+    bossGraphic.moveTo(width / 2 - 25, 250 - 98);
+    bossGraphic.lineTo(width / 2 - 15, 250 - 110);
+    bossGraphic.lineTo(width / 2, 250 - 105);
+    bossGraphic.lineTo(width / 2 + 15, 250 - 110);
+    bossGraphic.lineTo(width / 2 + 25, 250 - 98);
+    bossGraphic.stroke();
+
+    // Aura effect (mystical glow)
+    bossGraphic.lineStyle(2, 0xff0000, 0.5);
+    bossGraphic.strokeCircle(width / 2, 250 - 30, 95);
+    bossGraphic.lineStyle(1, 0xff0000, 0.3);
+    bossGraphic.strokeCircle(width / 2, 250 - 30, 105);
 
     // Store graphics reference
     (this.tatakaBoss as any).graphics = bossGraphic;

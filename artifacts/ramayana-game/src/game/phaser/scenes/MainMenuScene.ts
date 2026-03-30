@@ -11,28 +11,55 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.cameras.main;
 
-    // Background (placeholder - will be beautiful traditional art)
-    this.add.rectangle(0, 0, width, height, 0x1a0a00).setOrigin(0);
+    // Enhanced background with gradient
+    const bgGraphics = this.add.graphics();
+    bgGraphics.fillGradientStyle(0x0a0a0a, 0x0a0a0a, 0x1a0a00, 0x2d1b0f, 1);
+    bgGraphics.fillRect(0, 0, width, height);
+    bgGraphics.setDepth(-100);
 
-    // Title
+    // Decorative ornate corners
+    this.createOrnateCorner(10, 10, 100, 100, true);
+    this.createOrnateCorner(width - 110, 10, 100, 100, false);
+    this.createOrnateCorner(10, height - 110, 100, 100, false);
+    this.createOrnateCorner(width - 110, height - 110, 100, 100, true);
+
+    // Title with enhanced styling
     const title = this.add
       .text(width / 2, height / 4, "EPIC RAMAYANA", {
-        fontFamily: "Arial",
+        fontFamily: "serif",
         fontSize: "72px",
         color: "#FFD700",
         fontStyle: "bold",
         stroke: "#8B4513",
         strokeThickness: 6,
+        shadow: {
+          offsetX: 4,
+          offsetY: 4,
+          color: "#000000",
+          blur: 8,
+          fill: true,
+        },
       })
       .setOrigin(0.5);
 
-    // Subtitle
+    // Shimmer effect on title
+    this.tweens.add({
+      targets: title,
+      alpha: { from: 0.8, to: 1 },
+      duration: 2000,
+      repeat: -1,
+      yoyo: true,
+    });
+
+    // Subtitle with improved styling
     const subtitle = this.add
       .text(width / 2, height / 4 + 80, "Based on Valmiki Ramayana", {
-        fontFamily: "Arial",
+        fontFamily: "serif",
         fontSize: "24px",
         color: "#FFA500",
         fontStyle: "italic",
+        stroke: "#000000",
+        strokeThickness: 2,
       })
       .setOrigin(0.5);
 
@@ -48,7 +75,7 @@ export class MainMenuScene extends Phaser.Scene {
         this.scene.start("Level01_ValmikiAshram");
       },
       true,
-    ); // Highlight as primary option
+    );
 
     // Test Level - Combat demo
     this.createMenuItem(
@@ -87,19 +114,95 @@ export class MainMenuScene extends Phaser.Scene {
       false,
     );
 
-    // Instructions
+    // Enhanced instructions
     const instructions = this.add
       .text(
         width / 2,
         height - 50,
-        "Arrow Keys: Move | SPACE: Aim/Shoot | SHIFT: Run",
+        "Arrow Keys: Move | SPACE: Aim/Shoot | SHIFT: Run | 1-5: Select Astras",
         {
           fontFamily: "Arial",
           fontSize: "16px",
           color: "#CCCCCC",
+          backgroundColor: "#000000",
+          padding: { x: 10, y: 5 },
+          stroke: "#FFFFFF",
+          strokeThickness: 1,
         },
       )
       .setOrigin(0.5);
+
+    // Add animated particles (optional background effect)
+    this.createParticleBackground();
+  }
+
+  /**
+   * Create ornate corner decorations
+   */
+  private createOrnateCorner(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    topLeft: boolean,
+  ): void {
+    const corner = this.add.graphics();
+    corner.lineStyle(3, 0xffd700);
+
+    if (topLeft) {
+      // Top-left corner
+      corner.beginPath();
+      corner.moveTo(x, y + 30);
+      corner.lineTo(x, y);
+      corner.lineTo(x + 30, y);
+      corner.strokePath();
+
+      // Decorative dots
+      corner.fillStyle(0xffd700);
+      corner.fillCircle(x + 8, y + 8, 2);
+      corner.fillCircle(x + 16, y + 8, 2);
+      corner.fillCircle(x + 8, y + 16, 2);
+    } else {
+      // Other corners
+      corner.beginPath();
+      corner.moveTo(x, y);
+      corner.lineTo(x + 30, y);
+      corner.lineTo(x + 30, y + 30);
+      corner.strokePath();
+
+      corner.fillStyle(0xffd700);
+      corner.fillCircle(x + 8, y + 8, 2);
+      corner.fillCircle(x + 16, y + 8, 2);
+      corner.fillCircle(x + 16, y + 16, 2);
+    }
+
+    corner.setDepth(1);
+  }
+
+  /**
+   * Create subtle particle background effect
+   */
+  private createParticleBackground(): void {
+    // Subtle floating effects
+    for (let i = 0; i < 10; i++) {
+      const particle = this.add.circle(
+        Phaser.Math.Between(0, this.cameras.main.width),
+        Phaser.Math.Between(0, this.cameras.main.height),
+        Phaser.Math.Between(1, 3),
+        0xffd700,
+        0.2,
+      );
+      particle.setDepth(-50);
+
+      this.tweens.add({
+        targets: particle,
+        y: "+=50",
+        alpha: { from: 0.2, to: 0 },
+        duration: Phaser.Math.Between(3000, 6000),
+        repeat: -1,
+        delay: i * 300,
+      });
+    }
   }
 
   private createMenuItem(

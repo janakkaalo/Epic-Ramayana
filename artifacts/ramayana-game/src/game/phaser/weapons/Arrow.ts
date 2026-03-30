@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GAME_CONFIG } from "../config/gameConfig";
 import { AstraId, ASTRAS } from "../config/astras";
+import { ParticleEffectsManager } from "../systems/ParticleEffectsManager";
 
 export type ArrowType = "normal" | "fire" | "divine";
 
@@ -15,6 +16,7 @@ export class Arrow extends Phaser.Physics.Arcade.Sprite {
   private hasHit: boolean = false;
   private astraId?: AstraId;
   private trailEffect?: Phaser.GameObjects.Particles.ParticleEmitter;
+  private particleManager: ParticleEffectsManager;
 
   constructor(
     scene: Phaser.Scene,
@@ -41,6 +43,7 @@ export class Arrow extends Phaser.Physics.Arcade.Sprite {
     this.arrowType = arrowType;
     this.ownerId = ownerId;
     this.astraId = astraId;
+    this.particleManager = new ParticleEffectsManager(scene);
 
     // Add to scene
     scene.add.existing(this);
@@ -226,7 +229,7 @@ export class Arrow extends Phaser.Physics.Arcade.Sprite {
   }
 
   private createHitEffect(): void {
-    // Create visual hit effect based on type
+    // Determine effect color based on arrow type
     const effectColor =
       this.arrowType === "fire" || this.astraId === "AGNEYASTRA"
         ? 0xff4500
@@ -234,71 +237,27 @@ export class Arrow extends Phaser.Physics.Arcade.Sprite {
           ? 0xffd700
           : this.astraId === "VARUNASTRA"
             ? 0x00bfff
-            : 0xffffff;
+            : 0xff6b6b;
 
-    // Create impact particle burst
-    const particles = this.scene.add.particles(
-      this.x,
-      this.y,
-      "particle-" + effectColor.toString(16),
-      {
-        speed: { min: 50, max: 200 },
-        scale: { start: 1, end: 0 },
-        alpha: { start: 1, end: 0 },
-        lifespan: 500,
-        quantity: 30,
-        blendMode: "ADD",
-      },
-    );
+    // Use particle effects manager for explosion
+    this.particleManager.createExplosion(this.x, this.y, effectColor);
 
-    // Destroy after emission
-    this.scene.time.delayedCall(600, () => particles.destroy());
-
-    // Create a simple flash circle
-    const hitCircle = this.scene.add.circle(
-      this.x,
-      this.y,
-      20,
-      effectColor,
-      0.7,
-    );
-
-    this.scene.tweens.add({
-      targets: hitCircle,
-      scale: 2,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => hitCircle.destroy(),
-    });
-
-    // Special Astra effects
+    // Special Astra effects with additional particle effects
     if (this.astraId === "AGNEYASTRA") {
-      // Fire explosion
-      const fireRing = this.scene.add.circle(this.x, this.y, 10, 0xff0000, 0.5);
-      this.scene.tweens.add({
-        targets: fireRing,
-        scale: 5,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => fireRing.destroy(),
-      });
+      // Fire aura for Agneya Astra
+      this.particleManager.createAura(this.x, this.y, 0xff4500, 60);
+    } else if (this.astraId === "BRAHMASTRA") {
+      // Divine glow for Brahma Astra
+      this.particleManager.createAura(this.x, this.y, 0xffd700, 70);
     } else if (this.astraId === "VARUNASTRA") {
-      // Water splash
-      const waterSplash = this.scene.add.circle(
-        this.x,
+      // Water effect for Varuna Astra
+      this.particleManager.createProjectileTrail(
+        this.x - 20,
         this.y,
-        15,
+        this.x + 20,
+        this.y,
         0x00bfff,
-        0.6,
       );
-      this.scene.tweens.add({
-        targets: waterSplash,
-        scaleX: 4,
-        scaleY: 2,
-        alpha: 0,
-        duration: 400,
-        onComplete: () => waterSplash.destroy(),
-      });
     }
   }
 

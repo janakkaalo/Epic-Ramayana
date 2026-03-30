@@ -45,16 +45,33 @@ export class Bow {
     this.aimArc.setDepth(99);
     this.aimArc.setVisible(false);
 
+    // Enhanced wind indicator with better styling
     this.windIndicator = this.scene.add
       .text(10, 150, "Wind: None", {
         fontFamily: "Arial",
-        fontSize: "16px",
-        color: "#FFFFFF",
+        fontSize: "18px",
+        fontStyle: "bold",
+        color: "#FFD700",
         backgroundColor: "#000000",
-        padding: { x: 5, y: 3 },
+        padding: { x: 10, y: 7 },
+        stroke: "#FFFFFF",
+        strokeThickness: 2,
       })
       .setScrollFactor(0)
       .setDepth(101);
+
+    // Charge level indicator bar
+    const chargeBarBg = this.scene.add.graphics();
+    chargeBarBg.fillStyle(0x000000, 0.7);
+    chargeBarBg.fillRect(10, 180, 120, 15);
+    chargeBarBg.setScrollFactor(0);
+    chargeBarBg.setDepth(101);
+    (this as any).chargeBarBg = chargeBarBg;
+
+    const chargeBarFg = this.scene.add.graphics();
+    chargeBarFg.setScrollFactor(0);
+    chargeBarFg.setDepth(102);
+    (this as any).chargeBarFg = chargeBarFg;
   }
 
   private setupWindSystem(): void {

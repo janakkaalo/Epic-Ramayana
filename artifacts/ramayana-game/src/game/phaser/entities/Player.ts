@@ -3,6 +3,7 @@ import { GAME_CONFIG } from "../config/gameConfig";
 import { CHARACTERS, CharacterId } from "../config/characters";
 import { AstraId } from "../config/astras";
 import { Bow } from "../weapons/Bow";
+import { ParticleEffectsManager } from "../systems/ParticleEffectsManager";
 
 /**
  * Player Entity (Rama) for Epic Ramayana
@@ -29,11 +30,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private astraCooldowns: Map<AstraId, number> = new Map();
   private isInvulnerable: boolean = false;
   private bow!: Bow;
+  private particleManager!: ParticleEffectsManager;
 
   // Input keys
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyRun!: Phaser.Input.Keyboard.Key;
   private keyAim!: Phaser.Input.Keyboard.Key;
+  private lastDustEmitTime: number = 0;
+  private dustEmitInterval: number = 50; // Emit dust every 50ms
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "rama-spritesheet");
@@ -41,6 +45,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Add to scene
     scene.add.existing(this);
     scene.physics.add.existing(this);
+
+    // Draw detailed player sprite
+    this.drawPlayerSprite();
 
     // Set up physics
     this.setupPhysics();
@@ -60,6 +67,70 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Create bow weapon
     this.bow = new Bow(scene, this);
+
+    // Initialize particle effects manager
+    this.particleManager = new ParticleEffectsManager(scene);
+
+    // Add depth sorting
+    this.setDepth(100);
+  }
+
+  /**
+   * Draw an enhanced visual representation of Rama
+   */
+  private drawPlayerSprite(): void {
+    const graphics = this.scene.add.graphics();
+
+    // Skin tone - warm brown
+    const skinColor = 0xc4885f;
+
+    // Torso (traditional dhoti and upper wear)
+    graphics.fillStyle(0x8b0000, 1); // Deep red robe
+    graphics.fillRect(8, 10, 48, 35);
+
+    // Gold trim/belt
+    graphics.fillStyle(0xffd700, 1);
+    graphics.fillRect(8, 43, 48, 3);
+
+    // Skin - head
+    graphics.fillStyle(skinColor, 1);
+    graphics.fillCircle(32, 8, 8);
+
+    // Hair (black, traditional style)
+    graphics.fillStyle(0x000000, 1);
+    graphics.fillRect(24, 2, 16, 8);
+
+    // Eyes
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillCircle(28, 6, 2);
+    graphics.fillCircle(36, 6, 2);
+
+    graphics.fillStyle(0x000000, 1);
+    graphics.fillCircle(28, 6, 1);
+    graphics.fillCircle(36, 6, 1);
+
+    // Arms (skin)
+    graphics.fillStyle(skinColor, 1);
+    graphics.fillRect(5, 12, 4, 25);
+    graphics.fillRect(59, 12, 4, 25);
+
+    // Legs
+    graphics.fillStyle(0x4a3728, 1); // Darker for pants
+    graphics.fillRect(12, 45, 8, 20);
+    graphics.fillRect(44, 45, 8, 20);
+
+    // Feet
+    graphics.fillStyle(skinColor, 1);
+    graphics.fillRect(12, 64, 8, 4);
+    graphics.fillRect(44, 64, 8, 4);
+
+    // Bow across back (visual indicator)
+    graphics.lineStyle(2, 0xcd853f);
+    graphics.lineBetween(10, 20, 54, 20);
+
+    // Quiver
+    graphics.fillStyle(0x654321, 0.8);
+    graphics.fillRect(58, 15, 4, 15);
   }
 
   private setupPhysics(): void {
@@ -71,10 +142,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setSize(48, 64);
     body.setOffset(8, 0);
 
-    // Physics properties
+    // Enhanced physics properties for smooth movement
     body.setCollideWorldBounds(true);
-    body.setDrag(400, 0); // Ground friction
+    body.setBounce(0.1, 0); // Slight bounce effect
+    body.setDrag(350, 0); // Reduced friction for faster response
     body.setMaxVelocity(GAME_CONFIG.PLAYER.RUN_SPEED, 1000);
+
+    // Add gravity for realistic platforming
+    body.setGravityY(300); // Smooth gravity effect
+
+    // Prevent rotation
+    body.setAngularVelocity(0);
+    body.setAngularDrag(0);
   }
 
   private setupInput(): void {
@@ -149,13 +228,33 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       body.setVelocityX(-speed);
       this.isFacingRight = false;
       this.setFlipX(true);
+      // Emit dust cloud when moving on ground
+      if (onGround) {
+        this.emitDustIfNeeded();
+      }
     } else if (this.cursors.right.isDown) {
       body.setVelocityX(speed);
       this.isFacingRight = true;
       this.setFlipX(false);
+      // Emit dust cloud when moving on ground
+      if (onGround) {
+        this.emitDustIfNeeded();
+      }
     } else if (onGround) {
       // Apply friction only on ground
       body.setVelocityX(body.velocity.x * 0.8);
+    }
+  }
+
+  private emitDustIfNeeded(): void {
+    const now = this.scene.time.now;
+    if (now - this.lastDustEmitTime > this.dustEmitInterval) {
+      this.lastDustEmitTime = now;
+      // Emit dust at player's feet
+      const dustX = this.x + (this.isFacingRight ? -10 : 10);
+      const dustY = this.y + 15;
+      const dustCount = this.isRunning ? 6 : 3; // More dust when running
+      this.particleManager.createDustCloud(dustX, dustY, dustCount);
     }
   }
 
