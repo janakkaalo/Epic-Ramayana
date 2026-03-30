@@ -273,14 +273,16 @@ export class Level02_SacredYajna extends Phaser.Scene {
       }
 
       // Sway animation
-      this.tweens.add({
-        targets: garland,
-        y: garland.y + 5,
-        duration: 1500 + i * 200,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+      if (this.tweens && this.tweens.add) {
+        this.tweens.add({
+          targets: garland,
+          y: garland.y + 5,
+          duration: 1500 + i * 200,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      }
     }
 
     // Flowering plants with enhanced visuals
@@ -324,14 +326,16 @@ export class Level02_SacredYajna extends Phaser.Scene {
       const flowerCenter = this.add.circle(x, 500, 2, 0xffd700);
 
       // Gentle sway animation
-      this.tweens.add({
-        targets: [stem, leaf1, leaf2, flowerCenter],
-        angle: { from: -3, to: 3 },
-        duration: 2000,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
+      if (this.tweens && this.tweens.add) {
+        this.tweens.add({
+          targets: [stem, leaf1, leaf2, flowerCenter],
+          angle: { from: -3, to: 3 },
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      }
     });
 
     // Mandap structure decoration (arch elements)
