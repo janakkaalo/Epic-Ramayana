@@ -584,7 +584,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
 
     // Continue option
     this.input.keyboard?.on("keydown-SPACE", () => {
-      this.scene.start("Level06_GuardianOfYajna");
+      this.scene.start("MainMenuScene");
     });
   }
 
