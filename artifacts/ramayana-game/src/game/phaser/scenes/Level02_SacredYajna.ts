@@ -21,9 +21,10 @@
 import Phaser from "phaser";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { DialogueSystem, DialogueSequence } from "../systems/DialogueSystem";
+import { Player } from "../entities/Player";
 
 export class Level02_SacredYajna extends Phaser.Scene {
-  private player!: Phaser.Physics.Arcade.Sprite;
+  private player!: Player;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
   private collectibles!: Phaser.Physics.Arcade.Group;
   private levelBuilder!: LevelBuilder;
@@ -396,13 +397,8 @@ export class Level02_SacredYajna extends Phaser.Scene {
 
   private createPlayer(): void {
     // Young Rama (smaller sprite for 5-year-old)
-    this.player = this.physics.add.sprite(100, 500, "rama_idle");
+    this.player = new Player(this, 100, 500);
     this.player.setScale(0.6); // Smaller scale for young child
-    this.player.setBounce(0.1);
-    this.player.setCollideWorldBounds(true);
-
-    // Adjust physics body for smaller character
-    this.player.body!.setSize(24, 32);
   }
 
   private createCollectibles(): void {
@@ -696,24 +692,7 @@ export class Level02_SacredYajna extends Phaser.Scene {
       return;
     }
 
-    // Player movement
-    const speed = 160;
-    const runMultiplier = this.cursors.shift?.isDown ? 1.5 : 1;
-    const moveSpeed = speed * runMultiplier;
-
-    if (this.cursors.left.isDown) {
-      this.player.setVelocityX(-moveSpeed);
-      this.player.setFlipX(true);
-    } else if (this.cursors.right.isDown) {
-      this.player.setVelocityX(moveSpeed);
-      this.player.setFlipX(false);
-    } else {
-      this.player.setVelocityX(0);
-    }
-
-    // Jumping
-    if (this.cursors.up.isDown && this.player.body!.touching.down) {
-      this.player.setVelocityY(-350);
-    }
+    // Update player (handles movement, jumping, animations)
+    this.player.update(time, delta);
   }
 }

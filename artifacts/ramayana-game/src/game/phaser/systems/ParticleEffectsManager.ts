@@ -115,7 +115,8 @@ export class ParticleEffectsManager {
       repeat: -1,
       yoyo: true,
       onUpdate: (tween) => {
-        radius = tween.getValue();
+        const value = tween.getValue();
+        radius = value !== null ? value : radius;
         animate();
       },
       onComplete: () => {

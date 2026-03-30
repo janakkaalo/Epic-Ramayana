@@ -248,12 +248,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
 
     bossGraphic.beginPath();
     bossGraphic.moveTo(width / 2 + 20, 250 - 100);
-    bossGraphic.quadraticCurveTo(
-      width / 2 + 40,
-      250 - 120,
-      width / 2 + 45,
-      250 - 140,
-    );
+    bossGraphic.lineTo(width / 2 + 45, 250 - 140);
     bossGraphic.stroke();
 
     // Arms (muscular and clawed)
