@@ -181,13 +181,28 @@ export class Level04_SagesRequest extends Phaser.Scene {
     // Clear enemies
     this.enemies.clear(true, true);
 
-    // Forest background
-    this.add.rectangle(width, 0, width, height, 0x1a3a1a).setOrigin(0);
-    this.add.rectangle(width * 2, 0, width, height, 0x2d5a2d).setOrigin(0);
-    this.add.rectangle(width * 3, 0, width, height, 0x1a3a1a).setOrigin(0);
+    // Forest background with layered trees
+    const forestColors = [0x1a3a1a, 0x2d5a2d, 0x1a3a1a, 0x0d2d0d];
+    for (let section = 0; section < 4; section++) {
+      this.add
+        .rectangle(
+          width * (1 + section),
+          0,
+          width,
+          height,
+          forestColors[section],
+        )
+        .setOrigin(0);
+
+      // Add distant forest silhouettes (background trees)
+      this.createForestSilhouettes(width * (1 + section), height);
+    }
 
     // Create forest platforms
     this.createForestPlatforms();
+
+    // Add forest decorations (trees, mushrooms, etc.)
+    this.addForestDecorations();
 
     // Teleport player to start of forest
     this.player.setPosition(width + 100, 400);
@@ -437,5 +452,124 @@ export class Level04_SagesRequest extends Phaser.Scene {
       .rectangle(x, y, width, height, 0x654321)
       .setOrigin(0);
     this.platforms.add(platform);
+  }
+
+  /**
+   * Create forest silhouettes for background
+   */
+  private createForestSilhouettes(baseX: number, height: number): void {
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x0a1a0a, 0.6); // Dark silhouette
+
+    // Draw tree shapes
+    for (let i = 0; i < 8; i++) {
+      const x = baseX + 50 + i * 120;
+      const treeHeight = 200 + Phaser.Math.Between(-50, 50);
+
+      // Tree trunk
+      graphics.fillRect(x, height - treeHeight, 20, treeHeight);
+
+      // Tree foliage (circles)
+      for (let j = 0; j < 3; j++) {
+        graphics.fillCircle(x + 10, height - treeHeight + j * 40, 40 - j * 10);
+      }
+    }
+
+    graphics.setDepth(-5);
+    graphics.setScrollFactor(1);
+  }
+
+  /**
+   * Add decorative forest elements
+   */
+  private addForestDecorations(): void {
+    const { width, height } = this.cameras.main;
+    const forestStartX = width;
+    const baseY = height - 100;
+
+    // Add trees on platforms
+    for (let section = 0; section < 3; section++) {
+      for (let i = 0; i < 6; i++) {
+        const treeX = forestStartX + section * width + 150 + i * 180;
+        const treeY = baseY;
+
+        // Tree trunk
+        const trunk = this.add.rectangle(treeX, treeY - 60, 30, 120, 0x6d4c41);
+        trunk.setScrollFactor(1);
+
+        // Foliage (layered circles)
+        const foliage1 = this.add.circle(treeX, treeY - 120, 50, 0x2e7d32);
+        foliage1.setScrollFactor(1);
+
+        const foliage2 = this.add.circle(treeX - 20, treeY - 100, 40, 0x1b5e20);
+        foliage2.setScrollFactor(1);
+
+        const foliage3 = this.add.circle(treeX + 20, treeY - 100, 40, 0x1b5e20);
+        foliage3.setScrollFactor(1);
+      }
+    }
+
+    // Add mushroom groups
+    for (let i = 0; i < 15; i++) {
+      const mushroomX = forestStartX + Phaser.Math.Between(0, width * 3);
+      const mushroomY = baseY + 10;
+
+      const stem = this.add.rectangle(
+        mushroomX,
+        mushroomY - 10,
+        4,
+        20,
+        0xf5f5f5,
+      );
+      stem.setScrollFactor(1);
+
+      const cap = this.add.circle(mushroomX, mushroomY - 20, 8, 0xff6b6b);
+      cap.setScrollFactor(1);
+
+      const spots = this.add.circle(mushroomX, mushroomY - 20, 3, 0xffffff);
+      spots.setScrollFactor(1);
+    }
+
+    // Add forest flowers
+    for (let i = 0; i < 20; i++) {
+      const flowerX = forestStartX + Phaser.Math.Between(0, width * 3);
+      const flowerY = baseY - Phaser.Math.Between(0, 80);
+
+      const graphics = this.add.graphics();
+      graphics.fillStyle(0xff69b4);
+      for (let j = 0; j < 5; j++) {
+        const angle = (j / 5) * Math.PI * 2;
+        const x = flowerX + Math.cos(angle) * 6;
+        const y = flowerY + Math.sin(angle) * 6;
+        graphics.fillCircle(x, y, 3);
+      }
+      graphics.fillStyle(0xffd700);
+      graphics.fillCircle(flowerX, flowerY, 2);
+      graphics.setScrollFactor(1);
+    }
+
+    // Add wooden signpost before Siddhashrama
+    const signX = forestStartX + width * 3 - 200;
+    const signY = baseY - 50;
+
+    const signPost = this.add.rectangle(signX, signY, 8, 80, 0x8b4513);
+    signPost.setScrollFactor(1);
+
+    const signBoard = this.add.rectangle(
+      signX + 40,
+      signY - 40,
+      80,
+      40,
+      0xd2b48c,
+    );
+    signBoard.setStrokeStyle(2, 0x8b4513);
+    signBoard.setScrollFactor(1);
+
+    const signText = this.add.text(signX + 40, signY - 40, "Siddhashrama", {
+      fontSize: "12px",
+      color: "#000000",
+    });
+    signText.setOrigin(0.5);
+    signText.setScrollFactor(1);
   }
 }

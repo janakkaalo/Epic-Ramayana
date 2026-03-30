@@ -123,24 +123,46 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   private createEnvironment(): void {
     const { width, height } = this.cameras.main;
 
-    // Training ground base
+    // Training ground base with texture
     const groundY = height - 100;
-    this.add
+    const ground = this.add
       .rectangle(0, groundY, width * 2, 100, 0x8b7355)
       .setOrigin(0)
       .setScrollFactor(1);
+    ground.setStrokeStyle(2, 0x654321);
+
+    // Add ground texture pattern
+    for (let x = 0; x < width * 2; x += 60) {
+      for (let y = groundY; y < groundY + 100; y += 40) {
+        const patch = this.add.rectangle(x, y, 50, 35, 0x6d4c41, 0.3);
+        patch.setScrollFactor(1);
+      }
+    }
 
     // Palace structure in background
     this.createPalaceStructure(width / 2, 150);
 
-    // Guru statue (Vashishtha) - decorative
+    // Guru statue (Vashishtha) - decorative with enhanced visuals
     this.createGuruStatue(width - 200, groundY - 100);
 
-    // Training flags
+    // Training flags with enhanced visuals
     for (let i = 0; i < 5; i++) {
       const flagX = 300 + i * 400;
       this.createTrainingFlag(flagX, 100);
     }
+
+    // Add archery stall/station
+    this.createArcheryStall(width / 4, groundY - 80);
+
+    // Add meditation mats
+    for (let i = 0; i < 3; i++) {
+      const matX = 200 + i * 500;
+      this.createMeditationMat(matX, groundY - 30);
+    }
+
+    // Add decorative banners
+    this.createBanner(width / 3, 80);
+    this.createBanner((width * 2) / 3, 80);
   }
 
   /**
@@ -616,5 +638,74 @@ export class Level03_BrothersTraining extends Phaser.Scene {
 
     graphics.setDepth(5);
     graphics.setScrollFactor(1);
+  }
+
+  private createArcheryStall(x: number, y: number): void {
+    const graphics = this.add.graphics();
+
+    // Stall structure (wooden frame)
+    graphics.lineStyle(3, 0x8d6e63);
+    graphics.strokeRect(x - 40, y, 80, 60);
+
+    // Roof
+    graphics.fillStyle(0xf57f17);
+    graphics.fillTriangleShape(
+      new Phaser.Geom.Triangle(x - 45, y, x + 45, y, x, y - 30),
+    );
+
+    // Support posts
+    graphics.fillStyle(0x5d4037);
+    graphics.fillRect(x - 35, y + 30, 10, 30);
+    graphics.fillRect(x + 25, y + 30, 10, 30);
+
+    // Arrow rack decoration
+    for (let i = 0; i < 5; i++) {
+      const arrowX = x - 30 + i * 15;
+      graphics.fillStyle(0xff9800);
+      graphics.fillRect(arrowX, y + 10, 3, 20);
+    }
+
+    graphics.setDepth(8);
+    graphics.setScrollFactor(1);
+  }
+
+  private createMeditationMat(x: number, y: number): void {
+    // Mat base
+    const mat = this.add.rectangle(x, y, 60, 40, 0xc8b88b);
+    mat.setStrokeStyle(2, 0x8d6e63);
+    mat.setScrollFactor(1);
+
+    // Pattern on mat
+    const pattern = this.add.graphics();
+    pattern.fillStyle(0xa1887f, 0.5);
+    for (let i = 0; i < 3; i++) {
+      pattern.fillRect(x - 25, y - 15 + i * 15, 50, 5);
+    }
+    pattern.setScrollFactor(1);
+  }
+
+  private createBanner(x: number, y: number): void {
+    // Banner pole
+    const pole = this.add.rectangle(x, y + 30, 4, 80, 0x8d6e63);
+    pole.setScrollFactor(1);
+
+    // Banner cloth
+    const banner = this.add.rectangle(x + 40, y, 70, 40, 0xff6f00);
+    banner.setStrokeStyle(2, 0xf57f17);
+    banner.setScrollFactor(1);
+
+    // Banner text decoration (pattern)
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0xffd700);
+    for (let i = 0; i < 3; i++) {
+      graphics.fillCircle(x + 30 + i * 25, y, 4);
+    }
+    graphics.setScrollFactor(1);
+
+    // Rope from pole to banner
+    const graphics2 = this.add.graphics();
+    graphics2.lineStyle(2, 0x654321);
+    graphics2.lineBetween(x, y + 30, x + 40, y);
+    graphics2.setScrollFactor(1);
   }
 }

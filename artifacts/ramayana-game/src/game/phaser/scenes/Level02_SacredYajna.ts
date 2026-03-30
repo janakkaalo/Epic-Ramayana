@@ -91,8 +91,22 @@ export class Level02_SacredYajna extends Phaser.Scene {
     // Sky - warm sunrise (dawn of Rama's birth)
     this.levelBuilder.createSky(0xff9e80, 0xffe0b2);
 
-    // Sun (dawn)
-    this.levelBuilder.createCelestialBody(700, 120, 60, 0xffd700);
+    // Sun (dawn) with rays
+    const sun = this.add.circle(700, 120, 60, 0xffd700);
+    sun.setDepth(-10);
+
+    // Create sun rays effect
+    const rays = this.add.graphics();
+    rays.lineStyle(2, 0xffd700, 0.6);
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const x1 = 700 + Math.cos(angle) * 65;
+      const y1 = 120 + Math.sin(angle) * 65;
+      const x2 = 700 + Math.cos(angle) * 85;
+      const y2 = 120 + Math.sin(angle) * 85;
+      rays.lineBetween(x1, y1, x2, y2);
+    }
+    rays.setDepth(-10);
 
     // Mountains in background (Ayodhya kingdom)
     this.levelBuilder.createMountainLayers(
@@ -107,7 +121,7 @@ export class Level02_SacredYajna extends Phaser.Scene {
     // Palace ground
     this.levelBuilder.createGround(0xffd54f, 550, 50);
 
-    // Ornate palace building in background
+    // Ornate palace building in background with more detail
     const palace = this.levelBuilder.createBuilding(
       50,
       350,
@@ -117,6 +131,17 @@ export class Level02_SacredYajna extends Phaser.Scene {
       0xf57c00, // Orange roof
     );
     palace.setDepth(-1);
+
+    // Add palace windows
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 2; j++) {
+        const windowX = 50 + 50 + i * 40;
+        const windowY = 350 + 100 + j * 50;
+        const window = this.add.rectangle(windowX, windowY, 20, 20, 0x01579b);
+        window.setStrokeStyle(1, 0xf57f17);
+        window.setDepth(-1);
+      }
+    }
 
     // Sacred fire in center (animated)
     this.createSacredFire();
@@ -195,46 +220,112 @@ export class Level02_SacredYajna extends Phaser.Scene {
   }
 
   private createDecorations(): void {
-    // Decorative pillars
+    // Decorative pillars with ornate capitals
     const pillarPositions = [
       { x: 100, y: 500 },
       { x: 700, y: 500 },
     ];
 
     pillarPositions.forEach((pos) => {
-      const pillar = this.add.rectangle(pos.x, pos.y, 30, 100, 0xf9a825);
-      pillar.setStrokeStyle(2, 0xf57f17);
+      // Pillar base
+      const base = this.add.rectangle(pos.x, pos.y + 55, 35, 10, 0xd4a574);
+      base.setStrokeStyle(2, 0x8d6e63);
 
-      // Pillar top decoration
-      const top = this.add.ellipse(pos.x, pos.y - 55, 40, 15, 0xffd54f);
-      top.setStrokeStyle(2, 0xf57f17);
+      // Main pillar shaft
+      const shaft = this.add.rectangle(pos.x, pos.y, 30, 100, 0xf9a825);
+      shaft.setStrokeStyle(2, 0xf57f17);
+
+      // Pillar capital (top decoration)
+      const capital = this.add.rectangle(pos.x, pos.y - 55, 40, 15, 0xffd54f);
+      capital.setStrokeStyle(2, 0xf57f17);
+
+      // Capital ornament (diamond shape)
+      const ornament1 = this.add.polygon(
+        pos.x - 12,
+        pos.y - 55,
+        [0, -4, 4, 0, 0, 4, -4, 0],
+        0xffd700,
+      );
+      const ornament2 = this.add.polygon(
+        pos.x + 12,
+        pos.y - 55,
+        [0, -4, 4, 0, 0, 4, -4, 0],
+        0xffd700,
+      );
+
+      // Shadow effect under pillar
+      const shadow = this.add.ellipse(pos.x, pos.y + 60, 40, 8, 0x000000, 0.3);
     });
 
-    // Hanging decorations (garlands)
-    for (let i = 0; i < 5; i++) {
-      const x = 150 + i * 120;
-      const garland = this.add.ellipse(x, 50, 20, 30, 0xff6f00, 0.7);
+    // Hanging decorations (garlands) - more ornate
+    const garlandCount = 6;
+    for (let i = 0; i < garlandCount; i++) {
+      const x = 100 + i * 120;
+      const garland = this.add.ellipse(x, 70, 30, 40, 0xff6f00, 0.8);
+      garland.setStrokeStyle(1, 0xf57f17);
 
+      // Garland ornament pearls
+      for (let j = 0; j < 3; j++) {
+        const pearlX = x - 10 + j * 10;
+        const pearlY = 70 + 15;
+        const pearl = this.add.circle(pearlX, pearlY, 3, 0xffd700);
+        pearl.setStrokeStyle(1, 0xf9a825);
+      }
+
+      // Sway animation
       this.tweens.add({
         targets: garland,
-        y: garland.y + 10,
-        duration: 1000 + i * 200,
+        y: garland.y + 5,
+        duration: 1500 + i * 200,
         yoyo: true,
         repeat: -1,
         ease: "Sine.easeInOut",
       });
     }
 
-    // Flowering plants
+    // Flowering plants with enhanced visuals
     const plantPositions = [150, 300, 500, 650];
     plantPositions.forEach((x) => {
-      const stem = this.add.rectangle(x, 540, 4, 30, 0x2e7d32);
-      const flower = this.add.circle(x, 520, 8, 0xe91e63);
-      flower.setStrokeStyle(1, 0xc2185b);
+      // Pot
+      const pot = this.add.polygon(
+        x,
+        545,
+        [-8, 0, -6, -8, 6, -8, 8, 0, 6, 5, -6, 5],
+        0xc4885f,
+      );
+      pot.setStrokeStyle(1, 0x8d6e63);
+
+      // Soil
+      const soil = this.add.ellipse(x, 537, 14, 6, 0x795548);
+
+      // Stem
+      const stem = this.add.rectangle(x, 525, 3, 25, 0x2e7d32);
+      stem.setStrokeStyle(1, 0x1b5e20);
+
+      // Leaves
+      const leaf1 = this.add.polygon(x - 5, 515, [0, 0, 5, -5, 5, 5], 0x4caf50);
+      const leaf2 = this.add.polygon(
+        x + 5,
+        515,
+        [0, 0, -5, -5, -5, 5],
+        0x4caf50,
+      );
+
+      // Flower petals
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const offsetX = Math.cos(angle) * 6;
+        const offsetY = Math.sin(angle) * 6;
+        const petal = this.add.circle(x + offsetX, 500 + offsetY, 3, 0xe91e63);
+        petal.setStrokeStyle(1, 0xc2185b);
+      }
+
+      // Center of flower
+      const flowerCenter = this.add.circle(x, 500, 2, 0xffd700);
 
       // Gentle sway animation
       this.tweens.add({
-        targets: [stem, flower],
+        targets: [stem, leaf1, leaf2, flowerCenter],
         angle: { from: -3, to: 3 },
         duration: 2000,
         yoyo: true,
@@ -242,6 +333,27 @@ export class Level02_SacredYajna extends Phaser.Scene {
         ease: "Sine.easeInOut",
       });
     });
+
+    // Mandap structure decoration (arch elements)
+    const archLeft = this.add.arc(200, 200, 80, 0, Math.PI, false, 0xf9a825);
+    archLeft.setStrokeStyle(3, 0xf57f17);
+
+    const archRight = this.add.arc(600, 200, 80, 0, Math.PI, false, 0xf9a825);
+    archRight.setStrokeStyle(3, 0xf57f17);
+
+    // Decorative banner between arches
+    const bannerGraphics = this.add.graphics();
+    bannerGraphics.fillStyle(0xff6f00, 0.9);
+    bannerGraphics.fillRect(200, 140, 400, 40);
+    bannerGraphics.lineStyle(2, 0xf57f17);
+    bannerGraphics.strokeRect(200, 140, 400, 40);
+
+    // Banner text decoration (wave pattern)
+    for (let i = 0; i < 10; i++) {
+      const x = 200 + i * 40;
+      const point = this.add.circle(x, 135, 4, 0xffd700);
+      point.setStrokeStyle(1, 0xf57f17);
+    }
   }
 
   private createPlatforms(): void {
