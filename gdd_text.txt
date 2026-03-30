@@ -1,0 +1,641 @@
+Comprehensive Game Design and 
+Technical Specification: Ramayana 3D 
+Action-RPG 
+The translation of the ancient Sanskrit epic, the Ramayana, into a fully realized, 
+three-dimensional interactive digital environment represents a monumental challenge in both 
+narrative architecture and computational execution. Comprising over twenty-four thousand 
+verses divided into seven distinct Kandas or books, the epic serves as a foundational pillar of 
+global philosophy and theology, presenting an unparalleled canvas for a 3D Action-Role Playing 
+Game (RPG).1 To execute this project autonomously using the capabilities of modern 
+developmental frameworks like Replit Agent v4, the artificial intelligence requires highly 
+structured, deterministic parameters to generate the full chronological story, culturally 
+authentic mechanics, and sophisticated WebGL graphics.3 The developmental infrastructure 
+must rely on a Three.js rendering framework and the Cannon-es physics engine to handle the 
+complex celestial warfare and environmental puzzles inherent in the source material.3 This 
+document serves as the master architectural blueprint, providing the technical logic and 
+narrative sequence required to scaffold, compile, and refine the complete application—from 
+the foundational Vite bundler and Node.js backend to the final post-processing rendering 
+pass.3 
+Narrative Architecture and State Machine Flow 
+The sprawling timeline of the Ramayana, spanning from the miraculous birth of the princes in 
+Ayodhya to the cataclysmic battle at Lanka and the eventual establishment of Rama Rajya, 
+cannot be effectively translated into an interactive experience without compartmentalizing the 
+narrative into discrete, executable game states and playable levels.1 The narrative architecture 
+must follow a framing device, opening with the sage Valmiki inquiring of the celestial 
+messenger Narada regarding the existence of a perfect human being.4 This device establishes 
+the game's central philosophical theme: the concept of Maryada Purushottam, or the Supreme 
+Person of Boundaries.5 The developmental agent must structure the game into five distinct 
+acts, tracking player progress, moral alignment (Dharma), and inventory states through a 
+centralized, highly secure state machine.3 
+Act I: The Incarnation and the Training of the Princes 
+The first act functions as the prologue and mechanical tutorial, establishing the historical and 
+moral foundations of the Ikshvaku dynasty and introducing the core spiritual mechanics of the 
+game engine.1 The engine must initialize the state machine in approximately 12241 BCE, 
+centering on the capital city of Ayodhya.7 The environment must reflect the architectural 
+grandeur of the Kosala Kingdom, with intricate stone masonry and wide chariot-lanes rendered 
+using high-fidelity WebGL shaders.8 Following the cinematic representation of the 
+Putrakameshti Yajna and the subsequent birth of Rama, Bharata, Lakshmana, and Shatrughna, 
+the gameplay transitions into an instructional phase.1 
+The player assumes control of a sixteen-year-old Rama, tasked with accompanying the sage 
+Vishwamitra to protect his forest hermitage from demonic disruptions.1 This level introduces 
+the primary combat system: precision archery and the invocation of divine Astras.10 The first 
+major encounter against the demoness Tataka serves as a combat tutorial for targeting vital 
+points (Marmas).1 Successful completion of this quest unlocks the initial tier of the "AstraVidya" 
+framework, granting the player access to supernatural projectiles.3 The act culminates in the 
+kingdom of Mithila, where the player must solve a physics-based puzzle involving the weight 
+and tension of the celestial Bow of Shiva.1 The engine must utilize the Cannon.js library to 
+calculate the structural stress on the bow mesh, resulting in its physical breakage once the 
+player successfully applies sufficient force through an interactive timing minigame.1 
+Act II: The Forest Exile and the Crisis of Dharma 
+The second act transitions from the prosperity of Ayodhya into a high-stakes survival and 
+stealth environment, focusing on the political intrigue and subsequent fourteen-year exile.2 The 
+timeline shifts to approximately 12223 BCE, where the player must navigate complex dialogue 
+trees against the manipulated Queen Kaikeyi and the heartbroken King Dasharatha.7 This 
+chapter introduces the "Maryada" system, where the player's adherence to "Pitru Dharma" (filial 
+duty) influences the world-state.4 Choosing to accept the exile without resistance, despite the 
+option for a military revolt, permanently bolsters the player's "Dharma" score, which in turn 
+enhances the efficacy of future divine interventions.15 
+The gameplay then shifts to the Dandaka forest, requiring the player to manage environmental 
+resources and establish a hermitage for Sita and Lakshmana.1 This environment features dense 
+procedural generation of Ashoka and Shala trees, utilizing Three.js's InstancedMesh to maintain 
+performance.3 The primary threat comes from the demoness Surpanakha, whose attempts at 
+seduction and subsequent mutilation trigger a series of boss encounters against the generals 
+Khara and Dushana.1 The act reaches its narrative climax with the abduction of Sita by Ravana, 
+utilizing a "Maya" (illusion) mechanic where the demon Maricha assumes the form of a golden 
+deer to lure the player away.1 This sequence forces the player to manage Lakshmana's 
+AI-controlled defensive stance while chasing the high-speed, specularly-shaded deer mesh.1 
+Act III: The Kishkindha Alliance and the Vanara Scout 
+The third act dramatically expands the gameplay scope, introducing faction-based strategy 
+and high-mobility exploration in the southern subcontinent.7 The player travels to the 
+boulder-strewn landscape of Kishkindha, modeled after the unique topography of the Hampi 
+region.20 This level focuses on the conflict between the brothers Vali and Sugriva. The engine 
+must support a critical moral decision point: the player, as Rama, must decide whether to 
+engage the invincible Vali in open combat or intervene from the shadows.21 Choosing the latter 
+fulfills the "Aapad Dharma" (duty in adversity) logic, securing the alliance with the Vanara army 
+but creating a permanent "Karmic Weight" in the backend database.3 
+Once the alliance is established, the perspective shifts to Hanuman for the "Sundara" level.1 This 
+segment introduces the "Ashta Siddhi" mechanics, where the player can dynamically toggle 
+Hanuman’s size and mass to navigate the vertical cliffs of the Rishyamukha mountain.24 The act 
+culminates in Hanuman’s colossal leap across the ocean mesh to Lanka. The physics engine 
+must calculate momentum and air resistance, while the rendering pipeline uses custom GLSL 
+shaders to simulate the crystalline "Vaidurya" waters of the Pampa Lake.17 
+Act IV: The Infiltration of Lanka and the Divine Message 
+The fourth act focuses on social stealth, intelligence gathering, and psychological warfare 
+within the enemy capital.27 Controlling Hanuman, the player must infiltrate the "Golden City" of 
+Lanka, rendered with advanced screen-space reflection (SSR) shaders to represent its metallic 
+architecture.1 The primary objective is to locate Sita in the Ashoka Vatika without triggering an 
+all-out alarm from the Rakshasa guards.1 This level utilizes "Anima" (size-shrinking) to slip 
+through fortifications and "Vasitva" (influence) to mesmerize minor enemies.23 
+Following the successful delivery of Rama’s message, the gameplay shifts into an aggressive 
+"Lanka Dahan" (Burning of Lanka) phase.27 The player utilizes fire-based area-of-effect (AoE) 
+attacks to degrade the city’s environmental mesh, testing the engine's particle system and 
+dynamic deformation capabilities.17 The act concludes with Hanuman’s return to the mainland 
+and the subsequent engineering challenge: the construction of the "Nala Setu" bridge. The 
+player must coordinate the Vanara Sena to place "zero-gravity" stones on the water mesh, 
+requiring a complex physics-mesh interaction to simulate a floating structure capable of 
+supporting an army.7 
+Act V: The Great War and the Fall of the Demon King 
+The fifth and final act encompasses the cataclysmic eighteen-day Battle of Lanka, transitioning 
+from standard RPG exploration into large-scale 3D battlefield management.7 The Yuka AI library 
+must be fully optimized to handle thousands of concurrent entities, including the Vanara 
+infantry and the Rakshasa legions.3 The player alternates between controlling Rama in precision 
+duels and commanding the army in a hybrid RTS interface.3 
+The battles are structured as a series of high-difficulty boss encounters against Ravana’s family 
+and generals.30 To defeat Indrajit, the player must utilize Lakshmana’s "Twelve-Year 
+Sleeplessness" trait to see through Indrajit’s "Maya" invisibility shaders.35 The encounter with the 
+giant Kumbhakarna requires the player to coordinate a "Gulliver-style" containment strategy, 
+utilizing the Vanara Sena to weigh down the demon’s limbs before delivering a lethal strike.38 
+The war culminates in the final duel between Rama and Ravana. The player must execute a 
+"Ten-Head Decapitation" mechanic, where severed heads regenerate in real-time unless the 
+player targets Ravana’s navel during a specific vulnerability window.18 The application concludes 
+with the "Agni Pariksha" (Trial by Fire), the return to Ayodhya, and a free-roam epilogue where 
+the player can explore the perfect geometric utopian state of Rama Rajya.2 
+Character Hierarchies and Combat Profiles 
+The character design and underlying statistical architecture must reflect the absolute and 
+almost incomprehensible power scaling described in the Sanskrit texts.3 Traditional RPG 
+leveling is insufficient; instead, the developmental agent must hard-code these parameters into 
+an Entity Component System (ECS), ensuring that collision detection and damage output scale 
+exponentially based on a character's designated theological tier.3 
+ 
+Character Tier 
+Warrior 
+Classification 
+Statistical Scaling 
+Engine 
+Implementation 
+Tier 1: Rathi 
+Standard Hero 
+Equal to 5,000 
+warriors 
+Basic melee/ranged 
+AI with standard 
+collision.41 
+Tier 2: Atirathi 
+Elite Commander 
+Equal to 12 Rathis 
+(60,000) 
+Enhanced stamina 
+and unique skill 
+cooldowns.41 
+Tier 3: Maharathi 
+Master Tactician 
+Equal to 12 Atirathis 
+(720,000) 
+Mastery of multiple 
+divine Astras; 
+multi-target 
+lock-on.41 
+Tier 4: 
+Atimaharathi 
+Demigod Level 
+Equal to 12 
+Maharathis (8.6M) 
+Invulnerability 
+frames; global 
+area-of-effect 
+abilities.41 
+Tier 5: 
+Mahamaharathi 
+Supreme Deity 
+Infinite Scaling 
+Fundamentally 
+unplayable; 
+instant-wipe scripts 
+for enemies.3 
+The following tables outline the specific parameters for playable heroes and primary 
+apocalyptic antagonists, emphasizing distinct combat styles and ultimate abilities.3 
+Table 1: Playable Heroes and Allied Entities 
+ 
+Character 
+Name 
+Faction 
+Class 
+Weaponry 
+Primary 
+Attribute 
+Ultimate 
+Ability 
+(Siddhi / 
+Astra) 
+Rama 
+Ayodhya 
+Atimaharat
+hi 
+Sharanga 
+Bow 10 
+Dharma 
+(Virtue) 
+Brahmastr
+a: A 
+single-use 
+cosmic 
+projectile 
+that 
+annihilates 
+high-tier 
+boss 
+meshes.12 
+Lakshmana 
+Ayodhya 
+Maharathi 
+Twin Blades 
+/ Bow 1 
+Steadfastn
+ess 
+Indrastra: 
+A localized 
+lightning 
+storm that 
+targets 
+thousands 
+of enemy 
+NPCs 
+simultaneo
+usly.10 
+Hanuman 
+Vanara 
+Maharathi 
+Gada 
+(Mace) 33 
+Devotion 
+(Bhakti) 
+Ashta 
+Siddhi 
+Mastery: 
+Real-time 
+scale and 
+mass 
+shifting for 
+environmen
+tal 
+manipulatio
+n.23 
+Sugriva 
+Vanara 
+Atirathi 
+Rocks / 
+Trees 33 
+Loyalty 
+Solar Flare: 
+A blinding 
+aura that 
+debuffs the 
+accuracy of 
+Rakshasa 
+archers.16 
+Table 2: Antagonists and Boss Entities 
+ 
+Character 
+Name 
+Faction 
+Class 
+Mechanical 
+Traits 
+Primary 
+Hazard 
+Boss Phase 
+Mechanic 
+Ravana 
+Lanka 
+Atimaharat
+hi 
+Ten-Head 
+Regenerati
+on 
+Brahma 
+Armor 40 
+Head 
+regeneratio
+n script 
+triggers 
+every 5 
+seconds 
+unless navel 
+hit box is 
+active.18 
+Indrajit 
+Lanka 
+Maharathi 
+"Maya" 
+Invisibility 32 
+Nagapasha 
+12 
+Phase 1: 
+Invisibility 
+stealth. 
+Phase 2: 
+Illusionary 
+Sita 
+distraction. 
+Phase 3: 
+Nikumbhila 
+Yajna.30 
+Kumbhaka
+rna 
+Lanka 
+Maharathi 
+Colossal 
+Proportions 
+38 
+Devour 
+Mechanic 
+Requires 
+"Gulliver" 
+containmen
+t; player 
+must utilize 
+Vanara 
+Sena to pin 
+down 
+limbs.39 
+Tataka 
+Forest 
+Atirathi 
+High-Speed 
+Ambush 
+Lethal 
+Stinger 
+Functions 
+as the 
+primary 
+combat 
+tutorial for 
+targeting 
+"Marmas" 
+(vitals).1 
+The Maryada and Dharma Alignment Engine 
+To accurately represent the theological depth of the Ramayana, standard RPG alignment 
+systems like "Good versus Evil" are entirely discarded.3 In their place, the engine must construct 
+a sophisticated Maryada and Dharma Tracking Engine.4 This system monitors the player's 
+adherence to cosmic duty and moral limits, compounding these variables to influence both 
+narrative branches and statistical outcomes.3 
+The Maryada System (Limits of the Universe) 
+The concept of Maryada refers to the boundaries of the universe and the limits of appropriate 
+behavior for a given role.5 The engine tracks the player across four primary role-based metrics: 
+●​ Pati Dharma (Husband’s Duty): Evaluates the player's choices regarding the protection 
+and respect of Sita.15 
+●​ Pitru Dharma (Son’s Duty): Measures adherence to the instructions and honor of King 
+Dasharatha and the three mothers.4 
+●​ Bhratru Dharma (Brother’s Duty): Tracks the loyalty and support provided to Lakshmana, 
+Bharata, and Shatrughna.13 
+●​ Raj Dharma (King’s Duty): Influences the "Rama Rajya" world-state, prioritizing the 
+welfare of the citizens over personal desire.13 
+Dharma Points and Karmic Weight 
+High Dharma scores, earned through truthfulness (Satya) and self-control (Atman), unlock the 
+highest-tier Astras and increase the radius of protective auras like the "Laxman Rekha".4 
+Conversely, the engine utilizes a delayed-consequence logic for Karma. A choice made early in 
+the game—such as the intervention in the Bali-Sugriva duel—is mathematically weighted to 
+generate specialized "Nemesis" enemies in the later acts.3 The engine tracks these variables in a 
+backend database (SQLite), which directly governs the sorting algorithms for the game's 
+multiple endings.3 
+The AstraVidya Framework and Divine Weapons 
+Standard melee combat is supplemented by Astras, celestial weapons invoked through 
+mantras that represent the game's sophisticated magic system.3 The developmental agent 
+must implement this through the "AstraVidya" framework—a tag-based architecture that uses 
+JSON configuration files to define the properties of each weapon.3 
+Mechanical Implementation of Astras 
+The framework relies on a hexagonal combination interface where players can chain elemental 
+properties.3 The engine must program strict tactical counters: if an enemy invokes the fiery 
+Agneyastra, the player must counter with the water-based Varunastra.10 
+ 
+Astra Name 
+Presiding Deity 
+Environmental 
+Effect 
+Physics 
+Implementation 
+Agneyastra 
+Agni (Fire) 
+Inextinguishable 
+flames 10 
+Applies a 
+permanent 
+Damage-over-Time 
+(DoT) status.12 
+Varunastra 
+Varuna (Water) 
+Torrential volumes 
+of water 12 
+Uses fluid 
+simulation particles 
+to neutralize fire 
+hazards.10 
+Vayavyastra 
+Vayu (Wind) 
+Violent gale and 
+storms 10 
+Creates a storm 
+mesh that lifts 
+enemy infantry off 
+the ground.12 
+Nagapasha 
+The Nagas 
+Binds targets in 
+venomous snakes 12 
+Arrests the 
+locomotion and 
+animation 
+controllers of the 
+target.32 
+Suryastra 
+Surya (Sun) 
+Dazzling light 12 
+Temporarily blinds 
+the AI of Rakshasa 
+enemies.19 
+Brahmastra 
+Brahma (Creator) 
+Total annihilation 12 
+Screen-space 
+distortion shader; 
+wipes all instanced 
+meshes in a 
+radius.19 
+The Ashta Siddhi Mastery (Hanuman Mechanics) 
+For the playable Hanuman, standard RPG skills are replaced by the eight mystical perfections.23 
+●​ Anima (Shrinking): Used for stealth and infiltration puzzles in Lanka.24 
+●​ Mahima (Expanding): Essential for high-altitude combat and lifting environmental objects 
+like the Dronagiri mountain.24 
+●​ Garima (Heaviness): Prevents knockback; allows Hanuman to become an immovable 
+object during a swarm.23 
+●​ Laghima (Weightlessness): Enables high-speed flight and traversal over the sea mesh.24 
+●​ Prapti (Attainment): Allows the player to instantaneously acquire resources or medicine 
+(Sanjeevani) from any distance.23 
+●​ Prakamya (Will): Grants adaptive resilience, including underwater locomotion and 
+temporary invulnerability.23 
+●​ Isitva (Nature Control): Commands the fire during the Lanka Dahan sequence.23 
+●​ Vasitva (Mesmerism): Tames wild animals and manipulates the mind-states of low-tier 
+Rakshasas.25 
+Environmental Art Direction and Level Design 
+The visual language must accurately reflect the grandeur of ancient India, drawing inspiration 
+from Vedic, Mauryan, and Vijayanagar architectural precedents.3 The developmental agent 
+must utilize Level of Detail (LOD) swapping and aggressive instanced rendering to maintain 
+performance across these diverse hub worlds.3 
+Ayodhya and the Kosala Kingdom 
+The capital city acts as the primary hub for Act I and the Epilogue.1 
+●​ Architecture: Imposing stone masonry, wide streets for chariots, and parks laid out in a 
+"Karmuka" (bow) shape.9 
+●​ Visual Centerpiece: The Ram Mandir, featuring meticulously reconstructed 3D layers of 
+white MDF-style textures and golden-lit interiors.49 
+●​ Atmosphere: High-luminosity lighting with a "Rama Rajya" post-processing filter to convey 
+a utopian state of peace and order.2 
+The Kishkindha Region (Hampi Landscape) 
+The kingdom of the Vanaras is characterized by a hilly, boulder-filled terrain.20 
+●​ Environment: Massive granite boulders strewn across the landscape, perfect for 
+defensive hideouts and high-mobility platforming.20 
+●​ Pampa Sarovar: A pristine lake rendered with crystalline, pellucid water meshes that 
+mimic the specular highlights of cat's-eye gems.21 
+●​ Level Design: Caves and ravines (Rishyamook) that serve as hubs for the Vanara leaders, 
+decorated with primitive yet sacred stone idols.20 
+The Golden City of Lanka 
+Ravana’s citadel is situated on the three peaks of Mount Trikuta.29 
+●​ Materiality: Constructed entirely of gold. The rendering pipeline must apply custom GLSL 
+shaders to all architectural meshes to handle complex reflections.1 
+●​ Verticality: High-altitude fortifications and the Ashoka Vatika grove, featuring tropical 
+Ashoka trees and Shiva-dedicated statuary.1 
+●​ Key Asset: The Pushpaka Vimana, a vast aerial chariot rendered as a mobile flying palace 
+that can be boarded during specific Act V sequences.1 
+Technical Implementation via Replit Agent v4 
+The execution of this comprehensive design document relies entirely on the autonomous 
+coding capabilities of the developmental agent, interfaced with Three.js and the Yuka AI 
+engine.3 The initialization phase requires establishing a Node.js backend and a Vite bundler to 
+manage high-speed module loading.3 
+ECS and Performance Optimization 
+To manage the millions of monkeys and demons engaged in the Battle of Lanka, the agent must 
+utilize InstancedMesh for rendering.3 This reduces draw calls and prevents the browser 
+environment from crashing under the volume of entities.3 The AI pathfinding for the Vanara 
+Sena must be offloaded to WebWorkers to ensure the main UI thread remains responsive at 
+60fps.3 
+Physics and Interaction Logic 
+Integration with the Cannon-es physics engine is paramount for the AstraVidya and Ashta 
+Siddhi frameworks.3 
+●​ Momentum Calculation: Used for Hanuman's leap and the high-speed impact of chariot 
+charges.3 
+●​ Collision Decoupling: In "Maya Sabha" or illusionary sequences, the engine must decouple 
+visual meshes from their collision bodies, forcing the player to rely on "Discernment" 
+abilities to find the correct path.3 
+●​ Dynamic Deformation: Used for the earthquake events during the construction of the 
+Nala Setu and the falling of mountain-sized bosses like Kumbhakarna.7 
+AI Behavior Trees 
+The Yuka AI library manages the complex behaviors of both the Apostolic-style Vanara 
+companions and the diverse Rakshasa hordes.3 
+●​ Indrajit AI: Programmed with a sophisticated FSM that monitors the player's detection 
+state. If the player is blinded by a dark energy arrow, the AI enters a "Silent Strike" mode.30 
+●​ Ravana AI: Tracks ten independent health pools for the heads. The AI chooses its active 
+head based on the player’s current combat style—using a "Warrior" head for melee and a 
+"Scholar" head to counter Astras.40 
+By feeding this exhaustive architectural, narrative, and systemic blueprint into the 
+developmental agent, the developer ensures the accurate, robust, and technologically 
+advanced realization of the Ramayana as a definitive, story-driven interactive experience.3 
+Works cited 
+1.​ Ramayana - Wikipedia, accessed March 19, 2026, 
+https://en.wikipedia.org/wiki/Ramayana 
+2.​ Ramayana | PDF - Scribd, accessed March 19, 2026, 
+https://www.scribd.com/document/699092384/Ramayana 
+3.​ Jesus Game Design Document Creation.pdf 
+4.​ Shri Ram: The Divine Ideal of Virtue and Grace – Maryada Purushottam, accessed 
+March 19, 2026, 
+https://www.ghtn.in/post/shri-ram-the-divine-ideal-of-virtue-and-grace-maryada
+-purushottam 
+5.​ The Meaning and Significance of Maryada in the Ramayana - Dr Keshav Anand 
+Das, accessed March 19, 2026, 
+https://blogs.keshavananddas.com/the-meaning-and-significance-of-maryada-i
+n-the-ramayana/ 
+6.​ Ramayana | Definition, Summary & Importance - Lesson - Study.com, accessed 
+March 19, 2026, 
+https://study.com/academy/lesson/the-epic-of-ramayana-importance-of-the-vis
+hnu.html 
+7.​ Ramayana: Timeline Summary | Nilesh Nilkanth Oak - WordPress.com, accessed 
+March 19, 2026, 
+https://nileshoak.wordpress.com/2014/03/06/ramayana-timeline-summary/ 
+8.​ Building the Ramayana Game – Part 2: Defining the Style & Shaping Ayodhya - 
+YouTube, accessed March 19, 2026, 
+https://www.youtube.com/watch?v=uQVFBkJzhhA 
+9.​ Sacred Landscapes of Ramayana | PDF | Rama - Scribd, accessed March 19, 2026, 
+https://www.scribd.com/document/278334871/Landscapes-and-Ramayana-Lege
+nd 
+10.​List of Hindu Astras and Their Powers | PDF | Vishnu - Scribd, accessed March 19, 
+2026, https://www.scribd.com/document/236772482/Astras 
+11.​Weapons Used In Ramayana List - Ramanisblog, accessed March 19, 2026, 
+https://ramanisblog.in/2016/04/17/weapons-used-in-ramayana-list/ 
+12.​The Divine Weapons of the Puranas | Sanskriti - Hinduism and Indian Culture 
+Website, accessed March 19, 2026, 
+https://www.sanskritimagazine.com/divine-weapons-puranas/ 
+13.​Important Characters in Ramayana – Vedic,epic and puranic culture of India, 
+accessed March 19, 2026, 
+https://ebooks.inflibnet.ac.in/icp05/chapter/important-characters-in-ramayana/ 
+14.​Ramayana for Life Skills: The Two Boons ? - Organiser, accessed March 19, 2026, 
+https://organiser.org/2014/09/27/116954/bharat/ramayana-for-life-skills-the-two-
+boons/ 
+15.​Ramayana: Was Ram truly Maryada Purushottam? Then why did he abandon Sita, 
+accessed March 19, 2026, 
+https://shubhamwithadot.home.blog/2020/04/10/ramayana-was-ram-truly-mary
+ada-purushottam-then-why-did-he-abandon-sita/ 
+16.​Maryada Purushottam – Rama - Ameet Kothari - WordPress.com, accessed 
+March 19, 2026, 
+https://ameetkothari.wordpress.com/2019/04/13/maryada-purushottam-rama/ 
+17.​Top 10 Advanced Three.js Tricks for 2024 | by AALA IT Solutions | Medium, 
+accessed March 19, 2026, 
+https://medium.com/@AALA-IT-Solutions/top-10-advanced-three-js-tricks-for-2
+024-56fd065aed07 
+18.​The Narrative Prism. Ramayan as the Hero's Journey | by Anupriy Kanti | Cobalt 
+Blue Foundation | Medium, accessed March 19, 2026, 
+https://medium.com/cobalt-blue-foundation/through-the-narrative-prism-722b0
+5c65634 
+19.​What are the various weapons and astras in Ramayanam? - Quora, accessed 
+March 19, 2026, 
+https://www.quora.com/What-are-the-various-weapons-and-astras-in-Ramayan
+am 
+20.​On the Ramayana trail - Kishkindha at Hampi - Pragyata, accessed March 19, 
+2026, https://pragyata.com/on-the-ramayana-trail-kishkindha-at-hampi/ 
+21.​Kishkindha - Wikipedia, accessed March 19, 2026, 
+https://en.wikipedia.org/wiki/Kishkindha 
+22.​Part 1 : How is Rama a Maryada Purushottam when he banished his wife and killed 
+Bali by unfair means - PGurus, accessed March 19, 2026, 
+https://www.pgurus.com/part-1-how-is-rama-a-maryada-purushottam-when-he
+-banished-his-wife-and-killed-bali-by-unfair-means/ 
+23.​Unlocking the Secrets of Hanuman: The Ashta Siddhis - K. Hari Kumar, accessed 
+March 19, 2026, 
+https://theharikumar.com/hanuman-ashta-siddhis-supernatural-powers/ 
+24.​Ashta Siddhi Hanuman: The Divine Warrior of Faith - Where devotion transforms 
+into divine strength. - Astropuja, accessed March 19, 2026, 
+https://astropuja.com/blog/post/ashta-siddhi-hanuman 
+25.​Ashta Siddhi -8 Different Siddhi | Nepal Yoga Home, accessed March 19, 2026, 
+https://nepalyogahome.com/ashta-siddhi/ 
+26.​Kishkindha Kanda - Valmiki Ramayana, accessed March 19, 2026, 
+http://www.valmikiramayan.net/kishkindha/sarga1/kishkindha_1_prose.htm 
+27.​Hanuman Adventure:Ramayan Game - Apps on Google Play, accessed March 19, 
+2026, https://play.google.com/store/apps/details?id=com.aruhant.ramayana 
+28.​Hanuman Ji Game with Ramayana - Apps on Google Play, accessed March 19, 
+2026, https://play.google.com/store/apps/details?id=in.comin.hanumanjigame 
+29.​Ravana - Wikipedia, accessed March 19, 2026, https://en.wikipedia.org/wiki/Ravana 
+30.​Ramayana - Laxman vs Indrajit - Ep.252 - Stories From India, accessed March 19, 
+2026, https://sfipodcast.com/ramayana-laxman-vs-indrajit-ep-252/ 
+31.​Lord Rama fights Ravana and rescues Sita : Part 5 - The Gaudiya Treasures of 
+Bengal, accessed March 19, 2026, 
+https://thegaudiyatreasuresofbengal.com/2022/07/01/lord-rama-fights-ravana-an
+d-rescues-sita-part-5/ 
+32.​Episode 275 – Indrajith poisons Rama & Lakshmana with his “Naagaasthra”!!!, 
+accessed March 19, 2026, 
+https://theindiandharma.org/2018/02/02/episode-275-indrajith-poisons-rama-lak
+shmana-with-his-naagaasthra/ 
+33.​Ramayana - Jay's Gaming Blog, accessed March 19, 2026, 
+https://solowargamer.wordpress.com/hordes-of-the-things/ramayana/ 
+34.​Three.js Demo Collection: Simple Projects and Experiment - Showcase, accessed 
+March 19, 2026, 
+https://discourse.threejs.org/t/three-js-demo-collection-simple-projects-and-exp
+eriment/81317 
+35.​Lakshmana slaying Indrajit - Evergreen Messages of Spirituality, Sanskrit and 
+Nature, accessed March 19, 2026, 
+https://greenmesg.org/bharatavarsha/scriptures/itihasas/valmiki_ramayana/yuddh
+a_kanda/lanka-lakshmana_slaying_indrajit.php 
+36.​Episode 289 – Lakshmana vs. Indrajith – Part 2!!! - The Indian Dharma, accessed 
+March 19, 2026, 
+https://theindiandharma.org/2018/02/16/episode-289-lakshmana-vs-indrajith-par
+t-2/ 
+37.​Laxmana– The greatest warrior of the Epic saga 'RAMAYANA' - Blogs by Keshav., 
+accessed March 19, 2026, 
+https://dailyblogsofkjnikumbh.wordpress.com/2020/04/14/laxmana-the-greatest-
+warrior-of-the-epic-saga-ramayana/ 
+38.​Kumbhakarna - Wikipedia, accessed March 19, 2026, 
+https://en.wikipedia.org/wiki/Kumbhakarna 
+39.​Sri Rama slaying Kumbhakarna in battle - Green Message, accessed March 19, 
+2026, 
+https://greenmesg.org/bharatavarsha/scriptures/itihasas/valmiki_ramayana/yuddh
+a_kanda/lanka-rama_slaying_kumbhakarna.php 
+40.​We all know Ravana had ten heads. If Lord Shri Rama had cut all ten heads, would 
+Ravana have died? - Quora, accessed March 19, 2026, 
+https://www.quora.com/We-all-know-Ravana-had-ten-heads-If-Lord-Shri-Rama-
+had-cut-all-ten-heads-would-Ravana-have-died 
+41.​HIERARCHICAL CLASSIFICATION OF WARRIORS (HUMAN RESOURCES) IN 
+MAHABHARAT WAR - Jetir.Org, accessed March 19, 2026, 
+https://www.jetir.org/papers/JETIR1709036.pdf 
+42.​Can you classify the rankings ancient warriors of Mahabharata and Ramayana in 
+terms of Rathi, MahaRathi, AtiMahaRathi etc.?, accessed March 19, 2026, 
+https://mahabharatandramayana.quora.com/Can-you-classify-the-rankings-anci
+ent-warriors-of-Mahabharata-and-Ramayana-in-terms-of-Rathi-MahaRathi-Ati
+MahaRathi-et 
+43.​I was really surprised when yesterday I saw people believed that arjun can defeat 
+indrajit. : r/mahabharata - Reddit, accessed March 19, 2026, 
+https://www.reddit.com/r/mahabharata/comments/1jv42ba/i_was_really_surprised
+_when_yesterday_i_saw/ 
+44.​Valmiki Ramayana - Yuddha Kanda in Prose Sarga 60, accessed March 19, 2026, 
+http://www.valmikiramayan.net/yuddha/sarga60/yuddha_60_prose.htm 
+45.​The Ramayana House by Envisage - RTF | Rethinking The Future, accessed March 
+19, 2026, 
+https://www.re-thinkingthefuture.com/residentail-interior-design/11997-the-rama
+yana-house-by-envisage/ 
+46.​Celestial Weapons - Glorious Hinduism, accessed March 19, 2026, 
+https://glorioushinduism.com/2016/11/05/celestial-weapons/ 
+47.​Ashta Siddhi- 8 Divine Powers - Rohit Dhir, accessed March 19, 2026, 
+https://rohitdhir.com/ashta-siddhi-8-divine-powers/ 
+48.​How can I optimise my THREE.JS rendering? - Questions, accessed March 19, 
+2026, 
+https://discourse.threejs.org/t/how-can-i-optimise-my-three-js-rendering/42251 
+49.​City architect sculpts Ayodhya temple in 3D | Nagpur News - Times of India, 
+accessed March 19, 2026, 
+https://timesofindia.indiatimes.com/city/nagpur/city-architect-sculpts-ayodhya-te
+mple-in-3d/articleshow/106713172.cms 
+50.​The Ramayana 12. Rama and Ravana in Battle Summary & Analysis - LitCharts, 
+accessed March 19, 2026, 
+https://www.litcharts.com/lit/the-ramayana/12-rama-and-ravana-in-battle 

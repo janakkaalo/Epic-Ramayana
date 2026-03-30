@@ -1,0 +1,620 @@
+import Phaser from "phaser";
+import { Player } from "../entities/Player";
+import {
+  DialogueSystem,
+  BALA_KANDA_DIALOGUES,
+} from "../systems/DialogueSystem";
+import { AstraUI } from "../systems/AstraUI";
+import { getProgressionManager } from "../managers/LevelProgressionManager";
+
+/**
+ * Level 3: "Brothers' Training"
+ * Location: Ayodhya Palace Training Grounds
+ * Type: Tutorial - Archery Training
+ * Playable: Rama (16 years old)
+ *
+ * This level teaches archery mechanics through progressive challenges:
+ * - Phase 1: Aim training (5 stationary targets)
+ * - Phase 2: Power training (3 distant targets - requires full charge)
+ * - Phase 3: Precision training (3 bullseyes)
+ * - Phase 4: Moving targets (3 moving targets)
+ */
+export class Level03_BrothersTraining extends Phaser.Scene {
+  private player!: Player;
+  private platforms!: Phaser.Physics.Arcade.StaticGroup;
+  private targets!: Phaser.Physics.Arcade.Group;
+  private dialogueSystem!: DialogueSystem;
+  private astraUI!: AstraUI;
+
+  // Game state
+  private currentPhase: number = 1;
+  private targetsHitInPhase: number = 0;
+  private requiredHitsPerPhase: number[] = [5, 3, 3, 3]; // Targets needed for each phase
+  private totalDharmaScore: number = 0;
+
+  // UI elements
+  private phaseText!: Phaser.GameObjects.Text;
+  private targetsText!: Phaser.GameObjects.Text;
+  private instructionsText!: Phaser.GameObjects.Text;
+  private dharmaText!: Phaser.GameObjects.Text;
+  private guruText!: Phaser.GameObjects.Text;
+
+  constructor() {
+    super({ key: "Level03_BrothersTraining" });
+  }
+
+  create(): void {
+    const { width, height } = this.cameras.main;
+
+    // Create training grounds background
+    this.createBackground();
+    this.createEnvironment();
+
+    // Create platforms
+    this.createPlatforms();
+
+    // Create player
+    this.player = new Player(this, 150, 400);
+
+    // Create target group
+    this.targets = this.physics.add.group({
+      runChildUpdate: true,
+    });
+
+    // Set up collisions
+    this.physics.add.collider(this.player, this.platforms);
+
+    // Set up camera
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.setBounds(0, 0, width * 2, height);
+
+    // Initialize dialogue system
+    this.dialogueSystem = new DialogueSystem(this);
+
+    // Initialize Astra UI
+    this.astraUI = new AstraUI(this);
+
+    // Create HUD
+    this.createHUD();
+
+    // Set up arrow-target collision
+    this.setupArrowCollisions();
+
+    // Start with introduction dialogue
+    this.startTrainingPhase();
+
+    // Cursor keys for movement
+    const cursors = this.input.keyboard?.createCursorKeys();
+    if (cursors) {
+      // Movement is handled by Player.update()
+    }
+  }
+
+  update(time: number, delta: number): void {
+    this.player.update(time, delta);
+  }
+
+  /**
+   * Create beautiful training grounds background
+   */
+  private createBackground(): void {
+    const { width, height } = this.cameras.main;
+
+    // Sky with clouds
+    this.add.rectangle(0, 0, width, height, 0x87ceeb).setOrigin(0);
+
+    // Decorative clouds
+    for (let i = 0; i < 3; i++) {
+      const cloudX = (width / 3) * (i + 1);
+      const cloudY = 80;
+      this.createCloud(cloudX, cloudY, 40);
+    }
+
+    // Sun
+    this.add.circle(width - 100, 100, 50, 0xffd700);
+
+    // Mountains in distance
+    this.createMountainRange(0, height - 200);
+  }
+
+  /**
+   * Create environment elements
+   */
+  private createEnvironment(): void {
+    const { width, height } = this.cameras.main;
+
+    // Training ground base
+    const groundY = height - 100;
+    this.add
+      .rectangle(0, groundY, width * 2, 100, 0x8b7355)
+      .setOrigin(0)
+      .setScrollFactor(1);
+
+    // Palace structure in background
+    this.createPalaceStructure(width / 2, 150);
+
+    // Guru statue (Vashishtha) - decorative
+    this.createGuruStatue(width - 200, groundY - 100);
+
+    // Training flags
+    for (let i = 0; i < 5; i++) {
+      const flagX = 300 + i * 400;
+      this.createTrainingFlag(flagX, 100);
+    }
+  }
+
+  /**
+   * Create training platforms
+   */
+  private createPlatforms(): void {
+    this.platforms = this.physics.add.staticGroup();
+
+    const { width, height } = this.cameras.main;
+    const groundY = height - 100;
+
+    // Ground level
+    for (let x = 0; x < width * 2; x += 100) {
+      this.add
+        .rectangle(x, groundY, 100, 100, 0x654321)
+        .setOrigin(0)
+        .setScrollFactor(1);
+      this.platforms.add(
+        this.add.rectangle(x, groundY - 50, 100, 50, 0x8b4513).setOrigin(0),
+      );
+    }
+
+    // Training platforms
+    this.createPlatform(300, 450, 150, 20);
+    this.createPlatform(700, 400, 150, 20);
+    this.createPlatform(1100, 350, 150, 20);
+
+    this.platforms.refresh();
+  }
+
+  /**
+   * Add a single platform
+   */
+  private createPlatform(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    const platform = this.add
+      .rectangle(x, y, width, height, 0xd2691e)
+      .setOrigin(0);
+    this.platforms?.add(platform);
+  }
+
+  /**
+   * Create training targets for archery
+   */
+  private createTargets(): void {
+    this.targets.clear(true, true);
+    this.targetsHitInPhase = 0;
+
+    const { width, height } = this.cameras.main;
+    const groundY = height - 100;
+
+    if (this.currentPhase === 1) {
+      // Phase 1: Stationary targets at different heights
+      const positions = [
+        { x: 600, y: groundY - 150, moving: false },
+        { x: 850, y: groundY - 150, moving: false },
+        { x: 1100, y: groundY - 150, moving: false },
+        { x: 1350, y: groundY - 100, moving: false },
+        { x: 1600, y: groundY - 50, moving: false },
+      ];
+
+      positions.forEach((pos) => this.createTarget(pos.x, pos.y, pos.moving));
+    } else if (this.currentPhase === 2) {
+      // Phase 2: Distant targets (requiring full charge)
+      const positions = [
+        { x: 1200, y: groundY - 200 },
+        { x: 1600, y: groundY - 200 },
+        { x: 2000, y: groundY - 150 },
+      ];
+
+      positions.forEach((pos) => this.createTarget(pos.x, pos.y, false));
+    } else if (this.currentPhase === 3) {
+      // Phase 3: Precision targets (bullseyes)
+      const positions = [
+        { x: 700, y: groundY - 200 },
+        { x: 1100, y: groundY - 250 },
+        { x: 1500, y: groundY - 200 },
+      ];
+
+      positions.forEach((pos) => this.createTarget(pos.x, pos.y, false, true)); // Add bullseye flag
+    } else if (this.currentPhase === 4) {
+      // Phase 4: Moving targets
+      const positions = [
+        { x: 600, y: groundY - 150, movePattern: "horizontal" },
+        { x: 1000, y: groundY - 150, movePattern: "vertical" },
+        { x: 1400, y: groundY - 100, movePattern: "diagonal" },
+      ];
+
+      positions.forEach((pos) => {
+        const target = this.createTarget(pos.x, pos.y, true);
+        (target as any).movePattern = pos.movePattern;
+        (target as any).moveSpeed = 100;
+      });
+    }
+  }
+
+  /**
+   * Create an individual target
+   */
+  private createTarget(
+    x: number,
+    y: number,
+    isMoving: boolean = false,
+    isBullseye: boolean = false,
+  ): Phaser.Physics.Arcade.Sprite {
+    // Outer circle (red)
+    const outerCircle = this.add.circle(x, y, 25, 0xaa0000).setDepth(10);
+
+    // Inner circle (white)
+    const innerCircle = this.add.circle(x, y, 18, 0xffffff).setDepth(11);
+
+    // Bullseye center (if needed)
+    if (isBullseye) {
+      this.add.circle(x, y, 8, 0xaa0000).setDepth(12);
+    }
+
+    // Create physics sprite as container
+    const target = this.physics.add.sprite(x, y, "");
+    target.setVisible(false); // Hide the sprite, we're using graphics
+    target.setSize(50, 50);
+    target.setData("hitCount", 0);
+    target.setData("isBullseye", isBullseye);
+    target.setData("isMoving", isMoving);
+
+    // Store graphics references
+    (target as any).outerCircle = outerCircle;
+    (target as any).innerCircle = innerCircle;
+
+    this.targets.add(target);
+
+    return target;
+  }
+
+  /**
+   * Setup arrow-target collision detection
+   */
+  private setupArrowCollisions(): void {
+    // This would need to be set up from the Bow/Arrow system
+    // For now, we'll listen for arrow-target events
+    this.events.on("arrow-target-hit", (arrow: any, target: any) => {
+      this.handleTargetHit(target);
+    });
+  }
+
+  /**
+   * Handle target hit
+   */
+  private handleTargetHit(target: Phaser.Physics.Arcade.Sprite): void {
+    // Mark target as hit
+    const hitCount = target.getData("hitCount") || 0;
+    target.setData("hitCount", hitCount + 1);
+
+    // Update visuals
+    const isBullseye = target.getData("isBullseye");
+    let dharmaGain = 50; // Base dharma for hitting target
+    if (isBullseye) dharmaGain = 100; // Double points for bullseye
+
+    this.totalDharmaScore += dharmaGain;
+    this.targetsHitInPhase++;
+    this.updateHUD();
+
+    // Hide target if hit
+    if ((target as any).outerCircle) (target as any).outerCircle.setAlpha(0.3);
+    if ((target as any).innerCircle) (target as any).innerCircle.setAlpha(0.3);
+
+    // Check if phase complete
+    if (
+      this.targetsHitInPhase >= this.requiredHitsPerPhase[this.currentPhase - 1]
+    ) {
+      this.completePhase();
+    }
+  }
+
+  /**
+   * Complete current phase and advance
+   */
+  private completePhase(): void {
+    if (this.currentPhase < 4) {
+      this.currentPhase++;
+      this.showPhaseTransition();
+    } else {
+      // All phases complete - level complete
+      this.completeLevel();
+    }
+  }
+
+  /**
+   * Show phase transition message
+   */
+  private showPhaseTransition(): void {
+    const phaseMessages = [
+      "Phase 1: Aim Training Complete! Now learn to charge your power...",
+      "Phase 2: Power Training Complete! Now show your precision...",
+      "Phase 3: Precision Training Complete! Now face moving targets...",
+    ];
+
+    if (this.currentPhase - 1 < phaseMessages.length) {
+      this.guruText?.setText(phaseMessages[this.currentPhase - 1]);
+
+      // Small pause before creating new targets
+      this.time.delayedCall(2000, () => {
+        this.createTargets();
+        this.updateHUD();
+      });
+    }
+  }
+
+  /**
+   * Complete the level
+   */
+  private completeLevel(): void {
+    // Stop player movement
+    if (this.player.body) {
+      (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    }
+
+    // Clear targets
+    this.targets.clear(true, true);
+
+    // Show completion message
+    this.guruText?.setText(
+      "Excellent, Rama! You have mastered archery. You are ready for greater challenges ahead.",
+    );
+
+    // Update progression
+    const progressionManager = getProgressionManager();
+    progressionManager.completeLevel(
+      "Level03_BrothersTraining",
+      this.totalDharmaScore,
+    );
+    progressionManager.unlockAstra("AGNEYASTRA"); // Unlock first Astra
+
+    // Show completion dialogue
+    this.time.delayedCall(3000, () => {
+      this.showLevelComplete();
+    });
+  }
+
+  /**
+   * Show level complete screen
+   */
+  private showLevelComplete(): void {
+    const { width, height } = this.cameras.main;
+
+    const completeText = this.add
+      .text(width / 2, height / 2 - 50, "LEVEL COMPLETE", {
+        fontSize: "48px",
+        fontFamily: "serif",
+        color: "#FFD700",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    const dharmaText = this.add
+      .text(
+        width / 2,
+        height / 2 + 30,
+        `Dharma Gained: ${this.totalDharmaScore}`,
+        {
+          fontSize: "32px",
+          fontFamily: "serif",
+          color: "#FFFFFF",
+          stroke: "#000000",
+          strokeThickness: 2,
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    const continueText = this.add
+      .text(
+        width / 2,
+        height / 2 + 100,
+        "Press SPACE to continue to next level",
+        {
+          fontSize: "20px",
+          fontFamily: "Arial",
+          color: "#CCCCCC",
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    // Listen for space to continue
+    this.input.keyboard?.on("keydown-SPACE", () => {
+      this.scene.start("Level04_SagesRequest");
+    });
+  }
+
+  /**
+   * Create HUD elements
+   */
+  private createHUD(): void {
+    const padding = 20;
+
+    // Phase indicator
+    this.phaseText = this.add
+      .text(padding, padding, "Phase: 1/4", {
+        fontSize: "20px",
+        fontFamily: "Arial",
+        color: "#FFD700",
+        backgroundColor: "#000000",
+        padding: { x: 10, y: 5 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Targets hit counter
+    this.targetsText = this.add
+      .text(padding, padding + 40, "Targets: 0/5", {
+        fontSize: "20px",
+        fontFamily: "Arial",
+        color: "#FF6B6B",
+        backgroundColor: "#000000",
+        padding: { x: 10, y: 5 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Dharma score
+    this.dharmaText = this.add
+      .text(padding, padding + 80, "Dharma: 0", {
+        fontSize: "20px",
+        fontFamily: "Arial",
+        color: "#00FF00",
+        backgroundColor: "#000000",
+        padding: { x: 10, y: 5 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Instructions
+    this.instructionsText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height - 50,
+        "Arrow Keys: Move | SPACE: Aim/Shoot | SHIFT: Run",
+        {
+          fontSize: "16px",
+          fontFamily: "Arial",
+          color: "#FFFFFF",
+          backgroundColor: "#000000",
+          padding: { x: 10, y: 5 },
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Guru guidance text
+    this.guruText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        50,
+        "Hit all targets in Phase 1 to advance",
+        {
+          fontSize: "18px",
+          fontFamily: "serif",
+          color: "#FFD700",
+          backgroundColor: "#000000",
+          padding: { x: 15, y: 10 },
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+  }
+
+  /**
+   * Update HUD display
+   */
+  private updateHUD(): void {
+    this.phaseText?.setText(`Phase: ${this.currentPhase}/4`);
+    this.targetsText?.setText(
+      `Targets: ${this.targetsHitInPhase}/${this.requiredHitsPerPhase[this.currentPhase - 1]}`,
+    );
+    this.dharmaText?.setText(`Dharma: ${this.totalDharmaScore}`);
+  }
+
+  /**
+   * Start the training phase
+   */
+  private startTrainingPhase(): void {
+    this.createTargets();
+    this.updateHUD();
+  }
+
+  // Utility methods
+
+  private createCloud(x: number, y: number, size: number): void {
+    const cloud = this.add.graphics();
+    cloud.fillStyle(0xffffff, 0.8);
+    cloud.fillCircle(x - size, y, size);
+    cloud.fillCircle(x, y - size / 2, size * 1.2);
+    cloud.fillCircle(x + size, y, size);
+    cloud.setDepth(5);
+  }
+
+  private createMountainRange(x: number, y: number): void {
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x8b7355, 0.7);
+    graphics.beginPath();
+    graphics.moveTo(x, y);
+
+    for (let i = 0; i < 6; i++) {
+      const peakX = x + i * 400;
+      const peakY = y + Phaser.Math.Between(-100, 50);
+      graphics.lineTo(peakX, peakY);
+    }
+
+    graphics.lineTo(x + 2400, y + 200);
+    graphics.lineTo(x, y + 200);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.setDepth(3);
+  }
+
+  private createPalaceStructure(x: number, y: number): void {
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0xdaa520, 0.6); // Goldenrod
+
+    // Main structure
+    graphics.fillRect(x - 100, y, 200, 150);
+
+    // Roof (triangular)
+    graphics.fillTriangleShape(
+      new Phaser.Geom.Triangle(x - 100, y, x, y - 50, x + 100, y),
+    );
+
+    graphics.setDepth(4);
+    graphics.setScrollFactor(1);
+  }
+
+  private createGuruStatue(x: number, y: number): void {
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x808080, 0.8); // Gray stone
+
+    // Body
+    graphics.fillRect(x - 20, y, 40, 80);
+
+    // Head
+    graphics.fillCircle(x, y - 30, 20);
+
+    // Arms
+    graphics.fillRect(x - 40, y + 10, 80, 15);
+
+    graphics.setDepth(8);
+    graphics.setScrollFactor(1);
+  }
+
+  private createTrainingFlag(x: number, y: number): void {
+    const graphics = this.add.graphics();
+
+    // Pole
+    graphics.lineStyle(4, 0x654321);
+    graphics.lineBetween(x, y, x, y + 150);
+
+    // Flag
+    graphics.fillStyle(0xff6b6b);
+    graphics.fillTriangleShape(
+      new Phaser.Geom.Triangle(x, y + 20, x + 40, y + 30, x, y + 40),
+    );
+
+    graphics.setDepth(5);
+    graphics.setScrollFactor(1);
+  }
+}

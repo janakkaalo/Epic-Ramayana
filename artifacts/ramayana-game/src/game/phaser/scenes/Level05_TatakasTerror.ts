@@ -1,0 +1,619 @@
+import Phaser from "phaser";
+import { Player } from "../entities/Player";
+import { DialogueSystem } from "../systems/DialogueSystem";
+import { AstraUI } from "../systems/AstraUI";
+import { getProgressionManager } from "../managers/LevelProgressionManager";
+
+export type TatakaBossPhase = 1 | 2 | 3;
+
+/**
+ * Level 5: "Tataka's Terror"
+ * Location: Dark haunted forest
+ * Type: Boss Battle
+ * Playable: Rama (first major boss fight)
+ *
+ * Boss: Tataka - Female Asura (shape-shifter)
+ * Health: 500 HP
+ * Phases: 3 phases with different attack patterns
+ */
+export class Level05_TatakasTerror extends Phaser.Scene {
+  private player!: Player;
+  private platforms!: Phaser.Physics.Arcade.StaticGroup;
+  private dialogueSystem!: DialogueSystem;
+  private astraUI!: AstraUI;
+
+  // Boss state
+  private tatakaBoss!: Phaser.Physics.Arcade.Sprite;
+  private bossHealth: number = 500;
+  private bossMaxHealth: number = 500;
+  private currentPhase: TatakaBossPhase = 1;
+  private isAttacking: boolean = false;
+  private totalDamageDealt: number = 0;
+
+  // UI elements
+  private bossHealthBar!: Phaser.GameObjects.Graphics;
+  private bossNameText!: Phaser.GameObjects.Text;
+  private phaseText!: Phaser.GameObjects.Text;
+  private instructionsText!: Phaser.GameObjects.Text;
+  private totalDharmaScore: number = 0;
+
+  constructor() {
+    super({ key: "Level05_TatakasTerror" });
+  }
+
+  create(): void {
+    const { width, height } = this.cameras.main;
+
+    // Create dark forest background
+    this.createBackground();
+    this.createEnvironment();
+    this.createPlatforms();
+
+    // Create player
+    this.player = new Player(this, 150, 400);
+
+    // Set up camera
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.setBounds(0, 0, width * 2, height);
+
+    // Initialize systems
+    this.dialogueSystem = new DialogueSystem(this);
+    this.astraUI = new AstraUI(this);
+
+    // Create Tataka boss
+    this.createTatakaBoss();
+
+    // Create HUD
+    this.createHUD();
+
+    // Set up collisions
+    this.physics.add.collider(this.player, this.platforms);
+
+    // Set up arrow-boss collision
+    this.setupArrowCollisions();
+
+    // Start battle dialogue
+    this.startBattle();
+  }
+
+  update(time: number, delta: number): void {
+    if (!this.tatakaBoss) return;
+
+    this.player.update(time, delta);
+
+    // Update boss
+    this.updateBossAI(time, delta);
+    this.updateBossPhase();
+    this.updateHUD();
+  }
+
+  /**
+   * Create dark forest background
+   */
+  private createBackground(): void {
+    const { width, height } = this.cameras.main;
+
+    // Dark sky
+    this.add.rectangle(0, 0, width * 2, height, 0x1a1a2e).setOrigin(0);
+
+    // Lightning effects (occasional)
+    this.time.addEvent({
+      delay: 4000,
+      callback: () => {
+        this.flashLightning();
+      },
+      loop: true,
+    });
+
+    // Fog overlay
+    const fog = this.add.graphics();
+    fog.fillStyle(0x888888, 0.2);
+    fog.fillRect(0, 0, width * 2, height);
+    fog.setDepth(5);
+    fog.setScrollFactor(1);
+  }
+
+  /**
+   * Create dark forest environment
+   */
+  private createEnvironment(): void {
+    const { width, height } = this.cameras.main;
+
+    // Dead trees
+    for (let i = 0; i < 8; i++) {
+      const x = 300 + i * 300;
+      this.createDeadTree(x, height - 200);
+    }
+
+    // Eerie atmosphere elements
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x440000, 0.3); // Red tint
+    graphics.fillRect(0, 0, width * 2, height);
+    graphics.setDepth(2);
+    graphics.setScrollFactor(1);
+  }
+
+  /**
+   * Create arena platforms
+   */
+  private createPlatforms(): void {
+    this.platforms = this.physics.add.staticGroup();
+    const { width, height } = this.cameras.main;
+
+    // Ground
+    for (let x = 0; x < width * 2; x += 100) {
+      const ground = this.add
+        .rectangle(x, height - 50, 100, 50, 0x2c1810)
+        .setOrigin(0);
+      this.platforms.add(ground);
+    }
+
+    // Boss arena - central platforms
+    this.createPlatform(width / 2 - 150, 400, 300, 20); // Central platform
+    this.createPlatform(width / 2 - 350, 350, 150, 20); // Left side
+    this.createPlatform(width / 2 + 200, 350, 150, 20); // Right side
+
+    this.platforms.refresh();
+  }
+
+  /**
+   * Create Tataka boss sprite
+   */
+  private createTatakaBoss(): void {
+    const { width, height } = this.cameras.main;
+
+    // Create boss sprite
+    this.tatakaBoss = this.physics.add.sprite(width / 2, 250, "");
+    this.tatakaBoss.setVisible(false); // Hide placeholder
+
+    // Draw boss using graphics (fierce demon form)
+    const bossGraphic = this.add.graphics();
+    bossGraphic.fillStyle(0x8b0000, 1); // Dark red
+    bossGraphic.fillRect(width / 2 - 40, 250 - 60, 80, 120);
+    bossGraphic.fillCircle(width / 2, 250 - 70, 30); // Head
+
+    // Eyes
+    bossGraphic.fillStyle(0xffff00, 1);
+    bossGraphic.fillCircle(width / 2 - 15, 250 - 75, 8);
+    bossGraphic.fillCircle(width / 2 + 15, 250 - 75, 8);
+
+    // Store graphics reference
+    (this.tatakaBoss as any).graphics = bossGraphic;
+
+    // Set up physics body for collision
+    (this.tatakaBoss.body as Phaser.Physics.Arcade.Body).setSize(80, 120);
+    (this.tatakaBoss.body as Phaser.Physics.Arcade.Body).setOffset(-40, -60);
+  }
+
+  /**
+   * Start battle with intro dialogue
+   */
+  private startBattle(): void {
+    this.instructionsText?.setText(
+      "Tataka appears! Defeat her to protect the yajna. 3 Phases - watch for attacks!",
+    );
+
+    this.time.delayedCall(2000, () => {
+      // Boss is now active
+      this.isAttacking = true;
+    });
+  }
+
+  /**
+   * Update boss AI based on phase
+   */
+  private updateBossAI(time: number, delta: number): void {
+    if (!this.tatakaBoss || !this.tatakaBoss.active) return;
+
+    const bossBody = this.tatakaBoss.body as Phaser.Physics.Arcade.Body;
+    const distanceToPlayer = Phaser.Math.Distance.Between(
+      this.tatakaBoss.x,
+      this.tatakaBoss.y,
+      this.player.x,
+      this.player.y,
+    );
+
+    if (this.currentPhase === 1) {
+      this.updatePhase1AI(bossBody, distanceToPlayer, delta);
+    } else if (this.currentPhase === 2) {
+      this.updatePhase2AI(bossBody, distanceToPlayer, delta);
+    } else if (this.currentPhase === 3) {
+      this.updatePhase3AI(bossBody, distanceToPlayer, delta);
+    }
+  }
+
+  /**
+   * Phase 1: Grounded attacks
+   */
+  private updatePhase1AI(
+    body: Phaser.Physics.Arcade.Body,
+    distanceToPlayer: number,
+    delta: number,
+  ): void {
+    // Charge attack towards player
+    if (distanceToPlayer > 100) {
+      const direction = Phaser.Math.Angle.Between(
+        this.tatakaBoss.x,
+        this.tatakaBoss.y,
+        this.player.x,
+        this.player.y,
+      );
+      const speed = 150;
+      body.setVelocity(
+        Math.cos(direction) * speed,
+        Math.sin(direction) * speed,
+      );
+    } else {
+      body.setVelocity(0, 0);
+      // Attack!
+      this.performPhase1Attack();
+    }
+  }
+
+  /**
+   * Phase 2: Enraged mode with teleportation
+   */
+  private updatePhase2AI(
+    body: Phaser.Physics.Arcade.Body,
+    distanceToPlayer: number,
+    delta: number,
+  ): void {
+    // Faster movement
+    if (distanceToPlayer > 150) {
+      const direction = Phaser.Math.Angle.Between(
+        this.tatakaBoss.x,
+        this.tatakaBoss.y,
+        this.player.x,
+        this.player.y,
+      );
+      const speed = 220; // Faster than phase 1
+      body.setVelocity(
+        Math.cos(direction) * speed,
+        Math.sin(direction) * speed,
+      );
+    }
+
+    // Occasional teleport
+    if (Math.random() < 0.01) {
+      // 1% chance per frame to teleport
+      const newX = Phaser.Math.Between(200, 1000);
+      const newY = Phaser.Math.Between(150, 400);
+      this.tatakaBoss.setPosition(newX, newY);
+      this.performPhase2Attack();
+    }
+  }
+
+  /**
+   * Phase 3: Desperate berserker mode
+   */
+  private updatePhase3AI(
+    body: Phaser.Physics.Arcade.Body,
+    distanceToPlayer: number,
+    delta: number,
+  ): void {
+    // Extremely fast movement
+    const direction = Phaser.Math.Angle.Between(
+      this.tatakaBoss.x,
+      this.tatakaBoss.y,
+      this.player.x,
+      this.player.y,
+    );
+    const speed = 300;
+    body.setVelocity(Math.cos(direction) * speed, Math.sin(direction) * speed);
+
+    // Constant attacks
+    this.performPhase3Attack();
+  }
+
+  /**
+   * Phase 1 Attack: Basic charge and swipe
+   */
+  private performPhase1Attack(): void {
+    // Simple attack - just stay in place momentarily
+    this.time.delayedCall(500, () => {
+      (this.tatakaBoss.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    });
+  }
+
+  /**
+   * Phase 2 Attack: Ranged projectiles
+   */
+  private performPhase2Attack(): void {
+    // Spawn projectile
+    const projectile = this.physics.add.sprite(
+      this.tatakaBoss.x,
+      this.tatakaBoss.y,
+      "",
+    );
+    projectile.setVisible(false);
+
+    // Draw projectile
+    const graphic = this.add.graphics();
+    graphic.fillStyle(0xff0000, 0.8);
+    graphic.fillCircle(this.tatakaBoss.x, this.tatakaBoss.y, 8);
+
+    // Move towards player
+    const direction = Phaser.Math.Angle.Between(
+      this.tatakaBoss.x,
+      this.tatakaBoss.y,
+      this.player.x,
+      this.player.y,
+    );
+
+    const speed = 200;
+    (projectile.body as Phaser.Physics.Arcade.Body).setVelocity(
+      Math.cos(direction) * speed,
+      Math.sin(direction) * speed,
+    );
+
+    // Projectile cleanup
+    this.time.delayedCall(3000, () => {
+      projectile.destroy();
+      graphic.destroy();
+    });
+  }
+
+  /**
+   * Phase 3 Attack: Continuous rapid strikes
+   */
+  private performPhase3Attack(): void {
+    if (Math.random() < 0.05) {
+      // 5% chance per frame
+      // Visual attack indicator
+      const flash = this.add.rectangle(
+        this.tatakaBoss.x,
+        this.tatakaBoss.y,
+        160,
+        120,
+        0xff0000,
+        0.5,
+      );
+      flash.setDepth(50);
+
+      this.time.delayedCall(100, () => {
+        flash.destroy();
+      });
+    }
+  }
+
+  /**
+   * Handle arrow hitting boss
+   */
+  private handleBossHit(damage: number = 25): void {
+    this.bossHealth -= damage;
+    this.totalDamageDealt += damage;
+
+    // Boss hit effect
+    if ((this.tatakaBoss as any).graphics) {
+      (this.tatakaBoss as any).graphics.setAlpha(0.5);
+      this.time.delayedCall(100, () => {
+        (this.tatakaBoss as any).graphics.setAlpha(1);
+      });
+    }
+
+    // Gain dharma for damage
+    this.totalDharmaScore += Math.floor(damage / 5);
+
+    // Check phase transition
+    this.updateBossPhase();
+  }
+
+  /**
+   * Update boss phase based on health
+   */
+  private updateBossPhase(): void {
+    const healthPercent = (this.bossHealth / this.bossMaxHealth) * 100;
+
+    if (healthPercent > 60) {
+      this.currentPhase = 1;
+    } else if (healthPercent > 30) {
+      if (this.currentPhase === 1) {
+        this.phaseText?.setText("Phase 2: Tataka Enrages!");
+        this.currentPhase = 2;
+      }
+    } else if (healthPercent > 0) {
+      if (this.currentPhase === 2) {
+        this.phaseText?.setText("Phase 3: Desperate! Final Stand!");
+        this.currentPhase = 3;
+      }
+    } else {
+      this.completeBattle();
+    }
+  }
+
+  /**
+   * Complete the battle
+   */
+  private completeBattle(): void {
+    // Boss defeated
+    this.tatakaBoss.destroy();
+    this.isAttacking = false;
+
+    // Show victory screen
+    const { width, height } = this.cameras.main;
+
+    this.add
+      .text(width / 2, height / 2 - 50, "TATAKA DEFEATED!", {
+        fontSize: "48px",
+        fontFamily: "serif",
+        color: "#FFD700",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    const dharmaText = this.add
+      .text(
+        width / 2,
+        height / 2 + 30,
+        `Dharma Gained: ${this.totalDharmaScore}`,
+        {
+          fontSize: "32px",
+          fontFamily: "serif",
+          color: "#FFFFFF",
+          stroke: "#000000",
+          strokeThickness: 2,
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    // Update progression
+    const progressionManager = getProgressionManager();
+    progressionManager.completeLevel(
+      "Level05_TatakasTerror",
+      this.totalDharmaScore,
+    );
+    progressionManager.unlockAstra("AGNEYASTRA"); // Agneyastra unlocked
+
+    // Continue option
+    this.input.keyboard?.on("keydown-SPACE", () => {
+      this.scene.start("Level06_GuardianOfYajna");
+    });
+  }
+
+  /**
+   * Setup arrow-boss collision
+   */
+  private setupArrowCollisions(): void {
+    this.events.on("arrow-target-hit", (arrow: any, target: any) => {
+      if (target === this.tatakaBoss) {
+        this.handleBossHit();
+      }
+    });
+  }
+
+  /**
+   * Create HUD elements
+   */
+  private createHUD(): void {
+    const padding = 20;
+
+    this.bossNameText = this.add
+      .text(this.cameras.main.width / 2, padding, "TATAKA - The Demoness", {
+        fontSize: "24px",
+        fontFamily: "serif",
+        color: "#FF0000",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Boss health bar background
+    this.bossHealthBar = this.add.graphics();
+    this.drawBossHealthBar();
+
+    this.phaseText = this.add
+      .text(padding, padding + 100, "Phase: 1/3", {
+        fontSize: "18px",
+        fontFamily: "Arial",
+        color: "#FFFFFF",
+        backgroundColor: "#000000",
+        padding: { x: 10, y: 5 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    this.instructionsText = this.add
+      .text(this.cameras.main.width / 2, this.cameras.main.height - 50, "", {
+        fontSize: "16px",
+        fontFamily: "Arial",
+        color: "#FFFFFF",
+        backgroundColor: "#000000",
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+  }
+
+  /**
+   * Update HUD display
+   */
+  private updateHUD(): void {
+    this.drawBossHealthBar();
+  }
+
+  /**
+   * Draw boss health bar
+   */
+  private drawBossHealthBar(): void {
+    const width = this.cameras.main.width;
+    const padding = 60;
+    const barWidth = 300;
+    const barHeight = 20;
+    const x = (width - barWidth) / 2;
+    const y = 50;
+
+    this.bossHealthBar.clear();
+    this.bossHealthBar.setScrollFactor(0);
+    this.bossHealthBar.setDepth(100);
+
+    // Background
+    this.bossHealthBar.fillStyle(0x333333, 1);
+    this.bossHealthBar.fillRect(x, y, barWidth, barHeight);
+
+    // Health
+    const healthPercent = Math.max(0, this.bossHealth / this.bossMaxHealth);
+    this.bossHealthBar.fillStyle(0xff0000, 1);
+    this.bossHealthBar.fillRect(x, y, barWidth * healthPercent, barHeight);
+
+    // Border
+    this.bossHealthBar.lineStyle(2, 0xffffff);
+    this.bossHealthBar.strokeRect(x, y, barWidth, barHeight);
+  }
+
+  /**
+   * Lightning flash effect
+   */
+  private flashLightning(): void {
+    const flash = this.add.rectangle(
+      this.cameras.main.width / 2,
+      0,
+      this.cameras.main.width * 2,
+      this.cameras.main.height,
+      0xffffff,
+      0.1,
+    );
+    flash.setScrollFactor(0);
+    flash.setDepth(1);
+
+    this.time.delayedCall(100, () => {
+      flash.destroy();
+    });
+  }
+
+  // Utility methods
+
+  private createDeadTree(x: number, y: number): void {
+    const graphics = this.add.graphics();
+    graphics.lineStyle(4, 0x654321);
+    graphics.lineBetween(x, y, x, y - 150);
+
+    // Gnarled branches
+    graphics.lineBetween(x, y - 50, x - 40, y - 100);
+    graphics.lineBetween(x, y - 50, x + 40, y - 100);
+
+    graphics.setDepth(4);
+    graphics.setScrollFactor(1);
+  }
+
+  private createPlatform(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    const platform = this.add
+      .rectangle(x, y, width, height, 0x3c2415)
+      .setOrigin(0);
+    this.platforms.add(platform);
+  }
+}

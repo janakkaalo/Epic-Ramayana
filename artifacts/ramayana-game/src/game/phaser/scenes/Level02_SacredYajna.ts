@@ -1,0 +1,603 @@
+/**
+ * Level 2: Sacred Yajna
+ * Type: Tutorial - Platforming
+ * Location: Ayodhya Palace Yajna Mandap
+ * Playable: Young Rama (5 years old)
+ *
+ * Story Context:
+ * After Valmiki's introduction, we flashback to Rama's birth story.
+ * King Dasharatha performs the Putrakameshti Yajna with Rishyasringa.
+ * Young Rama is introduced as the divine child who will become the hero.
+ *
+ * Gameplay:
+ * - Pure platforming tutorial (no combat)
+ * - Learn movement (arrow keys)
+ * - Learn jumping (up arrow)
+ * - Collect sacred offerings (flowers, fruits)
+ * - Simple platform traversal
+ * - Beautiful palace environment
+ */
+
+import Phaser from "phaser";
+import { LevelBuilder } from "../utils/LevelBuilder";
+import { DialogueSystem, DialogueSequence } from "../systems/DialogueSystem";
+
+export class Level02_SacredYajna extends Phaser.Scene {
+  private player!: Phaser.Physics.Arcade.Sprite;
+  private platforms!: Phaser.Physics.Arcade.StaticGroup;
+  private collectibles!: Phaser.Physics.Arcade.Group;
+  private levelBuilder!: LevelBuilder;
+  private dialogueSystem!: DialogueSystem;
+
+  // Game state
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private itemsCollected: number = 0;
+  private totalItems: number = 10;
+  private levelComplete: boolean = false;
+
+  // UI elements
+  private collectionText!: Phaser.GameObjects.Text;
+  private instructionText!: Phaser.GameObjects.Text;
+
+  // Environment
+  private sacredFire!: Phaser.GameObjects.Container;
+  private fireParticles!: Phaser.GameObjects.Particles.ParticleEmitter;
+
+  constructor() {
+    super("Level02_SacredYajna");
+  }
+
+  create(): void {
+    console.log("Level 2: Sacred Yajna - Started");
+
+    const { width, height } = this.cameras.main;
+
+    // Set world bounds (important!)
+    this.physics.world.setBounds(0, 0, width, height);
+
+    this.levelBuilder = new LevelBuilder(this);
+    this.dialogueSystem = new DialogueSystem(this);
+
+    // Create environment
+    this.createEnvironment();
+
+    // Create platforms
+    this.createPlatforms();
+
+    // Create player (young Rama - 5 years old)
+    this.createPlayer();
+
+    // Create collectibles
+    this.createCollectibles();
+
+    // Setup camera to follow player
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.setBounds(0, 0, width, height);
+
+    // Create UI
+    this.createUI();
+
+    // Setup input
+    this.cursors = this.input.keyboard!.createCursorKeys();
+
+    // Setup collisions
+    this.setupCollisions();
+
+    // Show intro dialogue
+    this.showIntroDialogue();
+  }
+
+  private createEnvironment(): void {
+    // Sky - warm sunrise (dawn of Rama's birth)
+    this.levelBuilder.createSky(0xff9e80, 0xffe0b2);
+
+    // Sun (dawn)
+    this.levelBuilder.createCelestialBody(700, 120, 60, 0xffd700);
+
+    // Mountains in background (Ayodhya kingdom)
+    this.levelBuilder.createMountainLayers(
+      3,
+      450,
+      [0x9575cd, 0x7e57c2, 0x673ab7],
+    );
+
+    // Clouds
+    this.levelBuilder.createClouds(5);
+
+    // Palace ground
+    this.levelBuilder.createGround(0xffd54f, 550, 50);
+
+    // Ornate palace building in background
+    const palace = this.levelBuilder.createBuilding(
+      50,
+      350,
+      200,
+      200,
+      0xffb74d, // Golden palace walls
+      0xf57c00, // Orange roof
+    );
+    palace.setDepth(-1);
+
+    // Sacred fire in center (animated)
+    this.createSacredFire();
+
+    // Decorative elements
+    this.createDecorations();
+
+    // Level title with fade-in
+    this.levelBuilder.createLevelTitle(
+      "Bala Kanda",
+      2,
+      "Sacred Yajna - Ayodhya Palace - Dawn of the Prince",
+    );
+  }
+
+  private createSacredFire(): void {
+    const fireX = 400;
+    const fireY = 520;
+
+    this.sacredFire = this.add.container(fireX, fireY);
+
+    // Fire pit base
+    const firePit = this.add.ellipse(0, 0, 80, 30, 0x8b4513);
+    firePit.setStrokeStyle(3, 0x654321);
+
+    // Fire flames (layered triangles with animation)
+    const flame1 = this.add.triangle(0, -30, 0, 40, -15, 0, 15, 0, 0xff6b00);
+    const flame2 = this.add.triangle(0, -40, 0, 30, -10, 0, 10, 0, 0xff8e00);
+    const flame3 = this.add.triangle(0, -50, 0, 20, -5, 0, 5, 0, 0xffd700);
+
+    this.sacredFire.add([firePit, flame1, flame2, flame3]);
+
+    // Animate flames
+    this.tweens.add({
+      targets: flame1,
+      scaleY: { from: 1, to: 1.2 },
+      alpha: { from: 0.8, to: 1 },
+      duration: 400,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    this.tweens.add({
+      targets: flame2,
+      scaleY: { from: 1, to: 1.15 },
+      alpha: { from: 0.85, to: 1 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    this.tweens.add({
+      targets: flame3,
+      scaleY: { from: 1, to: 1.3 },
+      alpha: { from: 0.9, to: 1 },
+      duration: 300,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    // Fire particles (sparks)
+    const particles = this.add.particles(fireX, fireY - 40, "particle", {
+      speed: { min: 10, max: 30 },
+      angle: { min: 260, max: 280 },
+      scale: { start: 0.3, end: 0 },
+      tint: [0xffd700, 0xff8e00, 0xff6b00],
+      lifespan: 1000,
+      frequency: 50,
+      quantity: 2,
+    });
+
+    particles.setDepth(10);
+  }
+
+  private createDecorations(): void {
+    // Decorative pillars
+    const pillarPositions = [
+      { x: 100, y: 500 },
+      { x: 700, y: 500 },
+    ];
+
+    pillarPositions.forEach((pos) => {
+      const pillar = this.add.rectangle(pos.x, pos.y, 30, 100, 0xf9a825);
+      pillar.setStrokeStyle(2, 0xf57f17);
+
+      // Pillar top decoration
+      const top = this.add.ellipse(pos.x, pos.y - 55, 40, 15, 0xffd54f);
+      top.setStrokeStyle(2, 0xf57f17);
+    });
+
+    // Hanging decorations (garlands)
+    for (let i = 0; i < 5; i++) {
+      const x = 150 + i * 120;
+      const garland = this.add.ellipse(x, 50, 20, 30, 0xff6f00, 0.7);
+
+      this.tweens.add({
+        targets: garland,
+        y: garland.y + 10,
+        duration: 1000 + i * 200,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    }
+
+    // Flowering plants
+    const plantPositions = [150, 300, 500, 650];
+    plantPositions.forEach((x) => {
+      const stem = this.add.rectangle(x, 540, 4, 30, 0x2e7d32);
+      const flower = this.add.circle(x, 520, 8, 0xe91e63);
+      flower.setStrokeStyle(1, 0xc2185b);
+
+      // Gentle sway animation
+      this.tweens.add({
+        targets: [stem, flower],
+        angle: { from: -3, to: 3 },
+        duration: 2000,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    });
+  }
+
+  private createPlatforms(): void {
+    this.platforms = this.physics.add.staticGroup();
+
+    // Ground platform
+    const ground = this.add.rectangle(400, 575, 800, 50, 0xffd54f);
+    ground.setStrokeStyle(2, 0xf9a825);
+    this.platforms.add(ground);
+
+    // Tutorial platforms (ascending heights)
+    const platformData = [
+      { x: 150, y: 480, width: 120, height: 15 }, // Low platform
+      { x: 300, y: 420, width: 100, height: 15 }, // Medium platform
+      { x: 450, y: 360, width: 100, height: 15 }, // Higher platform
+      { x: 600, y: 300, width: 120, height: 15 }, // Highest platform
+      { x: 680, y: 420, width: 100, height: 15 }, // Descending
+      { x: 550, y: 480, width: 80, height: 15 }, // Near ground
+    ];
+
+    platformData.forEach((data) => {
+      const platform = this.add.rectangle(
+        data.x,
+        data.y,
+        data.width,
+        data.height,
+        0xf9a825,
+      );
+      platform.setStrokeStyle(2, 0xf57f17);
+      this.platforms.add(platform);
+    });
+
+    // Refresh static bodies (IMPORTANT!)
+    this.platforms.refresh();
+  }
+
+  private createPlayer(): void {
+    // Young Rama (smaller sprite for 5-year-old)
+    this.player = this.physics.add.sprite(100, 500, "rama_idle");
+    this.player.setScale(0.6); // Smaller scale for young child
+    this.player.setBounce(0.1);
+    this.player.setCollideWorldBounds(true);
+
+    // Adjust physics body for smaller character
+    this.player.body!.setSize(24, 32);
+  }
+
+  private createCollectibles(): void {
+    this.collectibles = this.physics.add.group({
+      allowGravity: false, // IMPORTANT: Disable gravity for all collectibles
+    });
+
+    // Collectible positions (sacred offerings)
+    const collectibleData = [
+      // Ground level
+      { x: 200, y: 530, type: "flower" },
+      { x: 500, y: 530, type: "fruit" },
+
+      // Low platforms
+      { x: 150, y: 450, type: "flower" },
+      { x: 550, y: 450, type: "fruit" },
+
+      // Medium platforms
+      { x: 300, y: 390, type: "flower" },
+      { x: 680, y: 390, type: "fruit" },
+
+      // High platforms
+      { x: 450, y: 330, type: "flower" },
+      { x: 600, y: 270, type: "fruit" },
+
+      // Extra collectibles
+      { x: 400, y: 480, type: "flower" },
+      { x: 350, y: 200, type: "special" }, // Special golden flower at top
+    ];
+
+    collectibleData.forEach((data, index) => {
+      const item = this.createCollectibleItem(data.x, data.y, data.type);
+      this.collectibles.add(item);
+    });
+  }
+
+  private createCollectibleItem(
+    x: number,
+    y: number,
+    type: string,
+  ): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+
+    // Base circle glow
+    const glow = this.add.circle(0, 0, 15, 0xffd700, 0.3);
+
+    let mainShape: Phaser.GameObjects.GameObject;
+
+    if (type === "flower") {
+      // Lotus flower
+      const petals = this.add.star(0, 0, 5, 8, 12, 0xff4081);
+      petals.setStrokeStyle(1, 0xf50057);
+      const center = this.add.circle(0, 0, 4, 0xffeb3b);
+      mainShape = petals;
+      container.add([glow, petals, center]);
+    } else if (type === "fruit") {
+      // Sacred fruit (mango)
+      const fruit = this.add.ellipse(0, 0, 12, 16, 0xffb300);
+      fruit.setStrokeStyle(1, 0xff8f00);
+      mainShape = fruit;
+      container.add([glow, fruit]);
+    } else if (type === "special") {
+      // Golden flower (bonus)
+      const star = this.add.star(0, 0, 8, 10, 15, 0xffd700);
+      star.setStrokeStyle(2, 0xffffff);
+      mainShape = star;
+      container.add([glow, star]);
+
+      // Extra sparkle for special item
+      this.tweens.add({
+        targets: star,
+        angle: 360,
+        duration: 3000,
+        repeat: -1,
+        ease: "Linear",
+      });
+    }
+
+    // Floating animation
+    this.tweens.add({
+      targets: container,
+      y: y - 10,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    // Pulse glow
+    this.tweens.add({
+      targets: glow,
+      scale: { from: 1, to: 1.3 },
+      alpha: { from: 0.3, to: 0.6 },
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    // Add physics
+    this.physics.add.existing(container);
+    (container.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    (container.body as Phaser.Physics.Arcade.Body).setSize(20, 20);
+
+    return container;
+  }
+
+  private createUI(): void {
+    // Collection counter
+    this.collectionText = this.add
+      .text(
+        20,
+        20,
+        `Sacred Offerings: ${this.itemsCollected}/${this.totalItems}`,
+        {
+          fontFamily: "Georgia, serif",
+          fontSize: "20px",
+          color: "#FFD700",
+          stroke: "#000000",
+          strokeThickness: 4,
+          shadow: {
+            offsetX: 2,
+            offsetY: 2,
+            color: "#000000",
+            blur: 5,
+            fill: true,
+          },
+        },
+      )
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Instructions
+    this.instructionText = this.add
+      .text(
+        400,
+        550,
+        "← → Move  |  ↑ Jump  |  SHIFT Run  |  Collect all offerings!",
+        {
+          fontFamily: "Georgia, serif",
+          fontSize: "16px",
+          color: "#FFFFFF",
+          backgroundColor: "#000000AA",
+          padding: { x: 10, y: 5 },
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    // Fade out instructions after 5 seconds
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: this.instructionText,
+        alpha: 0,
+        duration: 1000,
+      });
+    });
+  }
+
+  private setupCollisions(): void {
+    // Player collides with platforms
+    this.physics.add.collider(this.player, this.platforms);
+
+    // Player collects items
+    this.physics.add.overlap(
+      this.player,
+      this.collectibles,
+      this.collectItem as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this,
+    );
+  }
+
+  private collectItem(
+    player: Phaser.Types.Physics.Arcade.GameObjectWithBody,
+    item: Phaser.Types.Physics.Arcade.GameObjectWithBody,
+  ): void {
+    // Collect animation
+    this.tweens.add({
+      targets: item,
+      scale: 1.5,
+      alpha: 0,
+      y: (item as Phaser.GameObjects.Container).y - 50,
+      duration: 500,
+      onComplete: () => {
+        item.destroy();
+      },
+    });
+
+    // Increment counter
+    this.itemsCollected++;
+    this.collectionText.setText(
+      `Sacred Offerings: ${this.itemsCollected}/${this.totalItems}`,
+    );
+
+    // Play success sound (placeholder - would add actual sound)
+    // this.sound.play('collect');
+
+    // Check if all collected
+    if (this.itemsCollected >= this.totalItems && !this.levelComplete) {
+      this.levelComplete = true;
+      this.time.delayedCall(500, () => {
+        this.completeLevel();
+      });
+    }
+  }
+
+  private showIntroDialogue(): void {
+    const introSequence: DialogueSequence = {
+      id: "level2_intro",
+      entries: [
+        {
+          character: "Narrator",
+          text: "Long ago in the golden city of Ayodhya, King Dasharatha yearned for sons.",
+          duration: 0, // Wait for input
+        },
+        {
+          character: "Narrator",
+          text: "The great sage Rishyasringa performed the sacred Putrakameshti Yajna.",
+          duration: 0,
+        },
+        {
+          character: "Narrator",
+          text: "From the holy fire emerged a divine being bearing sacred nectar (Payasam).",
+          duration: 0,
+        },
+        {
+          character: "Narrator",
+          text: "Queen Kausalya received the first share, and in time, Prince Rama was born.",
+          duration: 0,
+        },
+        {
+          character: "Narrator",
+          text: "The infant Rama, an avatar of Lord Vishnu, brought joy to the kingdom.",
+          duration: 0,
+        },
+        {
+          character: "Narrator",
+          text: "Collect the sacred offerings scattered during the yajna ceremony!",
+          duration: 0,
+        },
+      ],
+      onComplete: () => {
+        console.log("Intro dialogue complete - player can move now");
+      },
+      skippable: true,
+    };
+
+    this.dialogueSystem.startDialogue(introSequence);
+  }
+
+  private completeLevel(): void {
+    // Show completion dialogue
+    const completeSequence: DialogueSequence = {
+      id: "level2_complete",
+      entries: [
+        {
+          character: "Narrator",
+          text: "Well done! All sacred offerings have been collected.",
+          duration: 0,
+        },
+        {
+          character: "Narrator",
+          text: "Prince Rama grew in strength and wisdom under the guidance of Guru Vashishtha.",
+          duration: 0,
+        },
+        {
+          character: "Narrator",
+          text: "Years passed, and Rama became renowned for his archery skills...",
+          duration: 0,
+        },
+      ],
+      onComplete: () => {
+        // Transition to Level 3
+        this.time.delayedCall(1000, () => {
+          console.log("Level 2 Complete - Transitioning to Level 3");
+          this.scene.start("Level03_BrothersTraining");
+        });
+      },
+      skippable: true,
+    };
+
+    this.dialogueSystem.startDialogue(completeSequence);
+  }
+
+  update(time: number, delta: number): void {
+    // Skip if dialogue is active
+    if (this.dialogueSystem && this.dialogueSystem.isDialogueActive()) {
+      this.player.setVelocityX(0);
+      return;
+    }
+
+    // Player movement
+    const speed = 160;
+    const runMultiplier = this.cursors.shift?.isDown ? 1.5 : 1;
+    const moveSpeed = speed * runMultiplier;
+
+    if (this.cursors.left.isDown) {
+      this.player.setVelocityX(-moveSpeed);
+      this.player.setFlipX(true);
+    } else if (this.cursors.right.isDown) {
+      this.player.setVelocityX(moveSpeed);
+      this.player.setFlipX(false);
+    } else {
+      this.player.setVelocityX(0);
+    }
+
+    // Jumping
+    if (this.cursors.up.isDown && this.player.body!.touching.down) {
+      this.player.setVelocityY(-350);
+    }
+  }
+}
