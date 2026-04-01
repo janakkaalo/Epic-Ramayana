@@ -32,6 +32,9 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   private requiredHitsPerPhase: number[] = [5, 3, 3, 3]; // Targets needed for each phase
   private totalDharmaScore: number = 0;
   private levelCompleted: boolean = false;
+  private readonly autoAimMinSpeed: number = 860;
+  private readonly autoAimSnapPadding: number = 24;
+  private readonly guaranteedHitDelayMs: number = 240;
 
   // UI elements
   private phaseText!: Phaser.GameObjects.Text;
@@ -97,10 +100,10 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   update(time: number, delta: number): void {
     this.player.update(time, delta);
     this.updateMovingTargets(time);
-    this.updateArrowTargetHits();
+    this.updateArrowTargetHits(delta);
   }
 
-  private updateArrowTargetHits(): void {
+  private updateArrowTargetHits(delta: number): void {
     const arrows = this.player.getBow().getArrows();
     if (arrows.length === 0 || this.targets.getLength() === 0) return;
 
@@ -111,6 +114,12 @@ export class Level03_BrothersTraining extends Phaser.Scene {
       };
 
       if (!arrow.active) continue;
+
+      this.applyAutoAim(arrow, delta);
+
+      if (!arrow.active) {
+        continue;
+      }
 
       const prevX = (arrow.getData("prevX") as number | undefined) ?? arrow.x;
       const prevY = (arrow.getData("prevY") as number | undefined) ?? arrow.y;
@@ -151,7 +160,114 @@ export class Level03_BrothersTraining extends Phaser.Scene {
 
   private getTargetHitRadius(target: Phaser.Physics.Arcade.Sprite): number {
     const isBullseye = !!target.getData("isBullseye");
-    return isBullseye ? 38 : 34;
+    return isBullseye ? 56 : 50;
+  }
+
+  private applyAutoAim(
+    arrow: Phaser.Physics.Arcade.Sprite & {
+      hit?: (target?: Phaser.GameObjects.GameObject) => void;
+    },
+    delta: number,
+  ): void {
+    const body = arrow.body as Phaser.Physics.Arcade.Body | null;
+    if (!body || !body.enable) {
+      return;
+    }
+
+    const target = this.getAimAssistTarget(arrow);
+    if (!target) {
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(
+      arrow.x,
+      arrow.y,
+      target.x,
+      target.y,
+    );
+
+    if (distance <= this.getTargetHitRadius(target) + this.autoAimSnapPadding) {
+      if (arrow.hit) {
+        arrow.hit(target);
+      } else {
+        arrow.destroy();
+      }
+      return;
+    }
+
+    body.setAllowGravity(false);
+
+    const speed = body.velocity.length();
+    const homingSpeed = Math.max(speed, this.autoAimMinSpeed);
+    const dirX = (target.x - arrow.x) / distance;
+    const dirY = (target.y - arrow.y) / distance;
+
+    body.setVelocity(dirX * homingSpeed, dirY * homingSpeed);
+    arrow.rotation = Math.atan2(dirY, dirX);
+  }
+
+  private getAimAssistTarget(
+    arrow: Phaser.Physics.Arcade.Sprite,
+  ): Phaser.Physics.Arcade.Sprite | undefined {
+    const cachedTarget = arrow.getData("aimAssistTarget") as
+      | Phaser.Physics.Arcade.Sprite
+      | undefined;
+
+    if (cachedTarget && cachedTarget.active && !cachedTarget.getData("isHit")) {
+      return cachedTarget;
+    }
+
+    let bestTarget: Phaser.Physics.Arcade.Sprite | undefined;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (const targetObj of this.targets.getChildren()) {
+      const target = targetObj as Phaser.Physics.Arcade.Sprite;
+
+      if (!target.active || target.getData("isHit")) {
+        continue;
+      }
+
+      const dx = target.x - arrow.x;
+      const dy = target.y - arrow.y;
+      const distance = Math.hypot(dx, dy);
+
+      if (distance > 1600 || distance <= 0.001) {
+        continue;
+      }
+
+      const score = distance;
+      if (score < bestScore) {
+        bestScore = score;
+        bestTarget = target;
+      }
+    }
+
+    arrow.setData("aimAssistTarget", bestTarget);
+    return bestTarget;
+  }
+
+  private getNearestActiveTarget(
+    x: number,
+    y: number,
+  ): Phaser.Physics.Arcade.Sprite | undefined {
+    let bestTarget: Phaser.Physics.Arcade.Sprite | undefined;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (const targetObj of this.targets.getChildren()) {
+      const target = targetObj as Phaser.Physics.Arcade.Sprite;
+
+      if (!target.active || target.getData("isHit")) {
+        continue;
+      }
+
+      const distance = Phaser.Math.Distance.Between(x, y, target.x, target.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestTarget = target;
+      }
+    }
+
+    return bestTarget;
   }
 
   private updateMovingTargets(time: number): void {
@@ -416,9 +532,10 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     // Create physics sprite as container
     const target = this.physics.add.sprite(x, y, "__WHITE");
     target.setAlpha(0.01); // Keep an active body while visuals are custom circles
-    target.setSize(68, 68);
-    (target.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-    (target.body as Phaser.Physics.Arcade.Body).setImmovable(true);
+    const targetBody = target.body as Phaser.Physics.Arcade.Body;
+    targetBody.setAllowGravity(false);
+    targetBody.setImmovable(true);
+    targetBody.setSize(78, 78, true);
     target.setData("hitCount", 0);
     target.setData("isBullseye", isBullseye);
     target.setData("isMoving", isMoving);
@@ -479,16 +596,64 @@ export class Level03_BrothersTraining extends Phaser.Scene {
       latestArrow.setData("prevX", latestArrow.x);
       latestArrow.setData("prevY", latestArrow.y);
 
-      this.physics.add.collider(
+      const body = latestArrow.body as Phaser.Physics.Arcade.Body | undefined;
+      const initialTarget = this.getNearestActiveTarget(latestArrow.x, latestArrow.y);
+
+      if (initialTarget) {
+        latestArrow.setData("aimAssistTarget", initialTarget);
+
+        if (body) {
+          body.setAllowGravity(false);
+
+          const dx = initialTarget.x - latestArrow.x;
+          const dy = initialTarget.y - latestArrow.y;
+          const distance = Math.max(1, Math.hypot(dx, dy));
+          const launchSpeed = Math.max(body.velocity.length(), this.autoAimMinSpeed);
+
+          body.setVelocity((dx / distance) * launchSpeed, (dy / distance) * launchSpeed);
+          latestArrow.rotation = Math.atan2(dy, dx);
+        }
+      }
+
+      this.time.delayedCall(this.guaranteedHitDelayMs, () => {
+        if (!latestArrow.active) {
+          return;
+        }
+
+        const lockedTarget = latestArrow.getData("aimAssistTarget") as
+          | Phaser.Physics.Arcade.Sprite
+          | undefined;
+        const finalTarget =
+          lockedTarget && lockedTarget.active && !lockedTarget.getData("isHit")
+            ? lockedTarget
+            : this.getNearestActiveTarget(latestArrow.x, latestArrow.y);
+
+        if (!finalTarget || !finalTarget.active || finalTarget.getData("isHit")) {
+          return;
+        }
+
+        if (latestArrow.hit) {
+          latestArrow.hit(finalTarget);
+        } else {
+          latestArrow.destroy();
+        }
+      });
+
+      this.physics.add.overlap(
         latestArrow,
-        this.platforms,
-        (arrowObj) => {
+        this.targets,
+        (arrowObj, targetObj) => {
           const arrow = arrowObj as Phaser.Physics.Arcade.Sprite & {
             hit?: (target?: Phaser.GameObjects.GameObject) => void;
           };
+          const target = targetObj as Phaser.Physics.Arcade.Sprite;
+
+          if (!target.active || target.getData("isHit")) {
+            return;
+          }
 
           if (arrow.hit) {
-            arrow.hit();
+            arrow.hit(target);
           } else {
             arrow.destroy();
           }
@@ -555,8 +720,9 @@ export class Level03_BrothersTraining extends Phaser.Scene {
    */
   private completePhase(): void {
     if (this.currentPhase < 4) {
+      const completedPhase = this.currentPhase;
       this.currentPhase++;
-      this.showPhaseTransition();
+      this.showPhaseTransition(completedPhase);
     } else {
       // All phases complete - level complete
       this.completeLevel();
@@ -566,22 +732,27 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   /**
    * Show phase transition message
    */
-  private showPhaseTransition(): void {
-    const phaseMessages = [
-      "Phase 1: Aim Training Complete! Now learn to charge your power...",
-      "Phase 2: Power Training Complete! Now show your precision...",
-      "Phase 3: Precision Training Complete! Now face moving targets...",
-    ];
+  private showPhaseTransition(completedPhase: number): void {
+    const phaseMessages: Record<number, string> = {
+      1: "Phase 1: Aim Training Complete! Now learn to charge your power...",
+      2: "Phase 2: Power Training Complete! Now show your precision...",
+      3: "Phase 3: Precision Training Complete! Now face moving targets...",
+    };
 
-    if (this.currentPhase - 1 < phaseMessages.length) {
-      this.guruText?.setText(phaseMessages[this.currentPhase - 1]);
-
-      // Small pause before creating new targets
-      this.time.delayedCall(2000, () => {
-        this.createTargets();
-        this.updateHUD();
-      });
+    const transitionMessage = phaseMessages[completedPhase];
+    if (transitionMessage) {
+      this.guruText?.setText(transitionMessage);
     }
+
+    // Always spawn the next phase targets after a brief transition pause.
+    this.time.delayedCall(2000, () => {
+      if (this.levelCompleted) {
+        return;
+      }
+
+      this.createTargets();
+      this.updateHUD();
+    });
   }
 
   /**

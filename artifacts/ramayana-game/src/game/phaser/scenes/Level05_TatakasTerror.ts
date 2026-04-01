@@ -618,7 +618,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
       .text(
         width / 2,
         height / 2 + 100,
-        "Press SPACE to return to Main Menu",
+        "Victory! Returning to Main Menu...",
         {
           fontSize: "22px",
           fontFamily: "Arial",
@@ -631,8 +631,8 @@ export class Level05_TatakasTerror extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1000);
 
-    // Continue option
-    this.input.keyboard?.once("keydown-SPACE", () => {
+    // Return automatically after the completion message has been visible.
+    this.time.delayedCall(3200, () => {
       this.scene.start("MainMenuScene");
     });
   }

@@ -36,6 +36,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyRun!: Phaser.Input.Keyboard.Key;
   private keyAim!: Phaser.Input.Keyboard.Key;
+  private keyMelee!: Phaser.Input.Keyboard.Key;
   private lastDustEmitTime: number = 0;
   private dustEmitInterval: number = 50; // Emit dust every 50ms
   private jumpVelocity: number = GAME_CONFIG.PLAYER.JUMP_VELOCITY;
@@ -43,6 +44,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private pointerAimActive: boolean = false;
   private lastPointerX: number = 0;
   private lastPointerY: number = 0;
+  private lastMeleeAttackTime: number = 0;
+  private readonly meleeCooldownMs: number = 350;
+  private readonly meleeRange: number = 95;
+  private readonly meleeDamage: number = 45;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "rama-spritesheet", "0");
@@ -226,6 +231,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.keyAim = this.scene.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE,
     );
+    this.keyMelee = this.scene.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.F,
+    );
   }
 
   update(time: number, delta: number): void {
@@ -260,6 +268,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       // Still update animation while aiming
       this.updateAnimation(body, onGround);
       return;
+    }
+
+    // Handle melee attack input when not aiming.
+    if (Phaser.Input.Keyboard.JustDown(this.keyMelee)) {
+      this.performMeleeAttack();
     }
 
     // Handle horizontal movement
@@ -399,16 +412,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Support both mouse aiming and keyboard-only aiming.
     const pointer = this.scene.input.activePointer;
     const camera = this.scene.cameras.main;
-    const pointerMoved =
-      Math.abs(pointer.x - this.lastPointerX) > 2 ||
-      Math.abs(pointer.y - this.lastPointerY) > 2;
     const pointerInsideViewport =
       pointer.x >= 0 &&
       pointer.x <= camera.width &&
       pointer.y >= 0 &&
       pointer.y <= camera.height;
 
-    if (pointerInsideViewport && pointerMoved) {
+    if (pointerInsideViewport) {
       this.pointerAimActive = true;
     }
 
@@ -450,6 +460,47 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Update bow aiming
     this.bow.updateAiming(this, targetX, targetY, delta);
+  }
+
+  private performMeleeAttack(): void {
+    const now = this.scene.time.now;
+    if (now - this.lastMeleeAttackTime < this.meleeCooldownMs) {
+      return;
+    }
+
+    this.lastMeleeAttackTime = now;
+    this.safePlay("rama-shoot");
+
+    const slashX = this.x + (this.isFacingRight ? 34 : -34);
+    const slashY = this.y - 12;
+    const slash = this.scene.add.graphics();
+    slash.lineStyle(4, 0xffd54f, 0.95);
+    slash.beginPath();
+
+    if (this.isFacingRight) {
+      slash.arc(slashX, slashY, 30, Phaser.Math.DegToRad(-60), Phaser.Math.DegToRad(60));
+    } else {
+      slash.arc(slashX, slashY, 30, Phaser.Math.DegToRad(120), Phaser.Math.DegToRad(240));
+    }
+
+    slash.strokePath();
+    slash.setDepth(130);
+
+    this.scene.tweens.add({
+      targets: slash,
+      alpha: 0,
+      duration: 120,
+      onComplete: () => slash.destroy(),
+    });
+
+    this.scene.events.emit("player-melee-attack", {
+      source: this,
+      x: this.x,
+      y: this.y,
+      range: this.meleeRange,
+      damage: this.meleeDamage,
+      facingRight: this.isFacingRight,
+    });
   }
 
   private updateCooldowns(delta: number): void {

@@ -19,9 +19,11 @@ export class LevelProgressionManager {
   private currentLevel: string | null = null;
   private totalDharmaScore: number = 0;
   private unlockedAstras: Set<string> = new Set();
+  private readonly storageKey = "epic-ramayana-progress-v1";
 
   constructor() {
     this.initializeLevels();
+    this.restoreFromStorage();
   }
 
   /**
@@ -218,6 +220,8 @@ export class LevelProgressionManager {
         next.unlocked = true;
       }
     }
+
+    this.persistToStorage();
   }
 
   /**
@@ -257,6 +261,47 @@ export class LevelProgressionManager {
    */
   unlockAstra(astraKey: string): void {
     this.unlockedAstras.add(astraKey);
+    this.persistToStorage();
+  }
+
+  /**
+   * Get best level to continue from.
+   */
+  getContinueLevelKey(): string {
+    const allLevels = this.getAllLevels();
+
+    const firstUnlockedIncomplete = allLevels.find(
+      (level) => level.unlocked && !level.completed,
+    );
+    if (firstUnlockedIncomplete) {
+      return firstUnlockedIncomplete.key;
+    }
+
+    if (this.currentLevel) {
+      const nextAfterCurrent = this.getNextLevel(this.currentLevel);
+      if (nextAfterCurrent && this.isLevelUnlocked(nextAfterCurrent)) {
+        return nextAfterCurrent;
+      }
+
+      return this.currentLevel;
+    }
+
+    return "Level01_ValmikiAshram";
+  }
+
+  /**
+   * Reset all progression for a new game.
+   */
+  clearProgress(): void {
+    this.levels.clear();
+    this.currentLevel = null;
+    this.totalDharmaScore = 0;
+    this.unlockedAstras.clear();
+    this.initializeLevels();
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(this.storageKey);
+    }
   }
 
   /**
@@ -309,6 +354,39 @@ export class LevelProgressionManager {
     if (data.totalDharmaScore) this.totalDharmaScore = data.totalDharmaScore;
     if (data.unlockedAstras) {
       this.unlockedAstras = new Set(data.unlockedAstras);
+    }
+
+    this.persistToStorage();
+  }
+
+  private persistToStorage(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const payload = JSON.stringify(this.saveProgress());
+      window.localStorage.setItem(this.storageKey, payload);
+    } catch {
+      // Ignore storage write failures in restricted environments.
+    }
+  }
+
+  private restoreFromStorage(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const saved = window.localStorage.getItem(this.storageKey);
+      if (!saved) {
+        return;
+      }
+
+      const parsed = JSON.parse(saved);
+      this.loadProgress(parsed);
+    } catch {
+      // Ignore corrupt save data.
     }
   }
 }

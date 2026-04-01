@@ -73,6 +73,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
 
     // Set up arrow-enemy collision
     this.setupArrowCollisions();
+    this.setupMeleeCombat();
 
     // Start dialogue
     this.startIntroDialogue();
@@ -89,6 +90,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
     });
 
     this.updateArrowEnemyHits();
+    this.syncEnemyProgress();
     this.checkLevelCompletion();
   }
 
@@ -107,6 +109,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
 
     // Create player at bottom left
     this.player = new Player(this, 100, 400);
+    this.player.setJumpVelocity(-560);
 
     // Create enemies group
     this.enemies = this.physics.add.group({
@@ -192,20 +195,21 @@ export class Level04_SagesRequest extends Phaser.Scene {
     this.enemiesDefeated = 0;
 
     // Forest background with layered trees
-    const forestColors = [0x1a3a1a, 0x2d5a2d, 0x1a3a1a, 0x0d2d0d];
+    const forestColors = [0x0f3b0f, 0x0f3b0f, 0x0f3b0f, 0x0f3b0f];
     for (let section = 0; section < 4; section++) {
       this.add
         .rectangle(
-          width * (1 + section),
+          width * section,
           0,
           width,
           height,
           forestColors[section],
         )
-        .setOrigin(0);
+        .setOrigin(0)
+        .setDepth(3);
 
       // Add distant forest silhouettes (background trees)
-      this.createForestSilhouettes(width * (1 + section), height);
+      this.createForestSilhouettes(width * section, height);
     }
 
     // Create forest platforms
@@ -214,19 +218,25 @@ export class Level04_SagesRequest extends Phaser.Scene {
     // Add forest decorations (trees, mushrooms, etc.)
     this.addForestDecorations();
 
-    // Teleport player to start of forest
-    this.player.setPosition(width + 100, 400);
+    // Teleport player to center of first forest screen so transition does not show split-scene glitch.
+    const forestEntryX = width / 2;
+    this.player.setPosition(forestEntryX, height - 220);
+    this.cameras.main.centerOn(forestEntryX, height / 2);
+
+    // Rebind colliders after replacing platform group; otherwise enemies/player fall through.
+    this.physics.add.collider(this.player, this.platforms);
+    this.physics.add.collider(this.enemies, this.platforms);
 
     // Start enemy spawning
     this.spawnEnemies();
 
     this.statusText?.setText(
-      "Defeat the asuras, then proceed to Siddhashrama!",
+      "Defeat the asuras with arrows or sword (F), then proceed to Siddhashrama!",
     );
     this.hasStartedJourney = true;
 
     // Set a goal position (far right of forest)
-    this.goalX = width * 3 + 500;
+    this.goalX = width * 3 + 300;
     this.createGoalMarker();
   }
 
@@ -236,10 +246,10 @@ export class Level04_SagesRequest extends Phaser.Scene {
   private createForestPlatforms(): void {
     const { width, height } = this.cameras.main;
     const baseY = height - 100;
-    const forestStartX = width;
+    const forestStartX = 0;
 
-    // Ground throughout forest
-    for (let x = 0; x < width * 3; x += 100) {
+    // Ground throughout forest, including right-side goal area.
+    for (let x = 0; x < width * 4 + 200; x += 100) {
       this.createPlatform(forestStartX + x, baseY, 100, 100);
     }
 
@@ -270,14 +280,14 @@ export class Level04_SagesRequest extends Phaser.Scene {
   private spawnEnemies(): void {
     const { width, height } = this.cameras.main;
     const baseY = height - 150;
-    const forestStartX = width;
+    const forestStartX = 0;
 
     // Spawn 5 minor asuras
     const enemyPositions = [
       { x: forestStartX + 600, y: baseY - 50 },
-      { x: forestStartX + 1000, y: baseY - 250 },
+      { x: forestStartX + 1000, y: baseY - 50 },
       { x: forestStartX + 1500, y: baseY - 50 },
-      { x: forestStartX + 1900, y: baseY - 200 },
+      { x: forestStartX + 1900, y: baseY - 50 },
       { x: forestStartX + 2300, y: baseY - 50 },
     ];
 
@@ -298,7 +308,63 @@ export class Level04_SagesRequest extends Phaser.Scene {
       ]);
     });
 
+    // Use actual spawned count to avoid soft locks if one enemy fails to instantiate.
+    this.totalEnemies = this.enemies.getLength();
+    this.enemiesDefeated = 0;
+
     this.updateEnemyCount();
+  }
+
+  private syncEnemyProgress(): void {
+    if (!this.hasStartedJourney || this.totalEnemies <= 0) {
+      return;
+    }
+
+    const worldBounds = this.physics.world.bounds;
+
+    for (const enemyObj of this.enemies.getChildren()) {
+      const enemy = enemyObj as Enemy;
+      if (!enemy.active || enemy.getState() === "DEAD") {
+        continue;
+      }
+
+      const outOfPlayableArea =
+        enemy.y > worldBounds.height + 160 ||
+        enemy.x < worldBounds.x - 240 ||
+        enemy.x > worldBounds.width + 240;
+
+      if (!outOfPlayableArea) {
+        continue;
+      }
+
+      if (!this.defeatedEnemies.has(enemy)) {
+        this.defeatedEnemies.add(enemy);
+      }
+
+      enemy.destroy();
+    }
+
+    const aliveEnemies = this.enemies
+      .getChildren()
+      .filter((enemyObj) => {
+        const enemy = enemyObj as Enemy;
+        return enemy.active && enemy.getState() !== "DEAD";
+      }).length;
+
+    const derivedDefeated = Phaser.Math.Clamp(
+      this.totalEnemies - aliveEnemies,
+      0,
+      this.totalEnemies,
+    );
+
+    if (derivedDefeated !== this.enemiesDefeated) {
+      this.enemiesDefeated = derivedDefeated;
+      this.updateEnemyCount();
+
+      if (this.enemiesDefeated >= this.totalEnemies) {
+        this.statusText?.setText("All asuras defeated! Reach Siddhashrama ahead.");
+      }
+    }
   }
 
   /**
@@ -393,6 +459,44 @@ export class Level04_SagesRequest extends Phaser.Scene {
 
         if (distance <= 90) {
           this.player.takeDamage(data.damage);
+        }
+      },
+      this,
+    );
+  }
+
+  private setupMeleeCombat(): void {
+    this.events.on(
+      "player-melee-attack",
+      (data: {
+        source: Phaser.GameObjects.GameObject;
+        x: number;
+        y: number;
+        range: number;
+        damage: number;
+        facingRight: boolean;
+      }) => {
+        if (!this.hasStartedJourney) {
+          return;
+        }
+
+        for (const enemyObj of this.enemies.getChildren()) {
+          const enemy = enemyObj as Enemy;
+
+          if (!enemy.active || enemy.getState() === "DEAD") {
+            continue;
+          }
+
+          const dx = enemy.x - data.x;
+          const dy = enemy.y - data.y;
+          const inFront = data.facingRight ? dx >= -20 : dx <= 20;
+          const closeEnough = Math.hypot(dx, dy) <= data.range;
+
+          if (!inFront || !closeEnough) {
+            continue;
+          }
+
+          this.handleEnemyHit(enemy, data.damage, data.source);
         }
       },
       this,
@@ -494,6 +598,18 @@ export class Level04_SagesRequest extends Phaser.Scene {
       return;
     }
 
+    // Anti-softlock: if player reaches the destination and exactly one enemy is
+    // missing/unreachable, count it as routed so progression can continue.
+    if (
+      this.player.x >= this.goalX &&
+      this.enemiesDefeated >= this.totalEnemies - 1 &&
+      this.enemiesDefeated < this.totalEnemies
+    ) {
+      this.enemiesDefeated = this.totalEnemies;
+      this.updateEnemyCount();
+      this.statusText?.setText("Final asura routed. Proceeding to Siddhashrama...");
+    }
+
     if (this.enemiesDefeated < this.totalEnemies) {
       return;
     }
@@ -566,7 +682,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
       .text(
         this.cameras.main.width / 2,
         this.cameras.main.height - 50,
-        "Arrow Keys: Move | Hold SPACE: Aim (Mouse or Up/Down), Release: Shoot",
+        "Arrow Keys: Move | Hold SPACE: Aim (Mouse or Up/Down), Release: Shoot | F: Sword Slash",
         {
           fontSize: "16px",
           fontFamily: "Arial",
@@ -661,6 +777,11 @@ export class Level04_SagesRequest extends Phaser.Scene {
     const platform = this.add
       .rectangle(x, y, width, height, 0x654321)
       .setOrigin(0);
+
+    if (this.levelPart === "forest") {
+      platform.setDepth(8);
+    }
+
     this.platforms.add(platform);
   }
 
@@ -685,7 +806,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
       }
     }
 
-    graphics.setDepth(-5);
+    graphics.setDepth(4);
     graphics.setScrollFactor(1);
   }
 
@@ -694,7 +815,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
    */
   private addForestDecorations(): void {
     const { width, height } = this.cameras.main;
-    const forestStartX = width;
+    const forestStartX = 0;
     const baseY = height - 100;
 
     // Add trees on platforms
@@ -706,16 +827,20 @@ export class Level04_SagesRequest extends Phaser.Scene {
         // Tree trunk
         const trunk = this.add.rectangle(treeX, treeY - 60, 30, 120, 0x6d4c41);
         trunk.setScrollFactor(1);
+        trunk.setDepth(9);
 
         // Foliage (layered circles)
         const foliage1 = this.add.circle(treeX, treeY - 120, 50, 0x2e7d32);
         foliage1.setScrollFactor(1);
+        foliage1.setDepth(9);
 
         const foliage2 = this.add.circle(treeX - 20, treeY - 100, 40, 0x1b5e20);
         foliage2.setScrollFactor(1);
+        foliage2.setDepth(9);
 
         const foliage3 = this.add.circle(treeX + 20, treeY - 100, 40, 0x1b5e20);
         foliage3.setScrollFactor(1);
+        foliage3.setDepth(9);
       }
     }
 
@@ -732,12 +857,15 @@ export class Level04_SagesRequest extends Phaser.Scene {
         0xf5f5f5,
       );
       stem.setScrollFactor(1);
+      stem.setDepth(9);
 
       const cap = this.add.circle(mushroomX, mushroomY - 20, 8, 0xff6b6b);
       cap.setScrollFactor(1);
+      cap.setDepth(9);
 
       const spots = this.add.circle(mushroomX, mushroomY - 20, 3, 0xffffff);
       spots.setScrollFactor(1);
+      spots.setDepth(9);
     }
 
     // Add forest flowers
@@ -756,6 +884,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
       graphics.fillStyle(0xffd700);
       graphics.fillCircle(flowerX, flowerY, 2);
       graphics.setScrollFactor(1);
+      graphics.setDepth(9);
     }
 
     // Add wooden signpost before Siddhashrama
@@ -764,6 +893,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
 
     const signPost = this.add.rectangle(signX, signY, 8, 80, 0x8b4513);
     signPost.setScrollFactor(1);
+    signPost.setDepth(10);
 
     const signBoard = this.add.rectangle(
       signX + 40,
@@ -774,6 +904,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
     );
     signBoard.setStrokeStyle(2, 0x8b4513);
     signBoard.setScrollFactor(1);
+    signBoard.setDepth(10);
 
     const signText = this.add.text(signX + 40, signY - 40, "Siddhashrama", {
       fontSize: "12px",
@@ -781,5 +912,6 @@ export class Level04_SagesRequest extends Phaser.Scene {
     });
     signText.setOrigin(0.5);
     signText.setScrollFactor(1);
+    signText.setDepth(10);
   }
 }

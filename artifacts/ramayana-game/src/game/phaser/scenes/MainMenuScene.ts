@@ -1,9 +1,12 @@
 import Phaser from "phaser";
+import { getProgressionManager } from "../managers/LevelProgressionManager";
 
 /**
  * MainMenuScene - Main menu for Epic Ramayana
  */
 export class MainMenuScene extends Phaser.Scene {
+  private levelSelectOverlay?: Phaser.GameObjects.Container;
+
   constructor() {
     super({ key: "MainMenuScene" });
   }
@@ -72,6 +75,8 @@ export class MainMenuScene extends Phaser.Scene {
       "Story Mode",
       menuY,
       () => {
+        const progressionManager = getProgressionManager();
+        progressionManager.clearProgress();
         this.scene.start("Level01_ValmikiAshram");
       },
       true,
@@ -91,16 +96,18 @@ export class MainMenuScene extends Phaser.Scene {
       "Continue",
       menuY + menuSpacing * 2,
       () => {
-        console.log("Continue - Load saved game (Coming Soon)");
+        const progressionManager = getProgressionManager();
+        const continueLevel = progressionManager.getContinueLevelKey();
+        this.scene.start(continueLevel);
       },
       false,
     );
 
     this.createMenuItem(
-      "Journey Map",
+      "Level Select",
       menuY + menuSpacing * 3,
       () => {
-        console.log("Journey Map - View completed levels (Coming Soon)");
+        this.showLevelSelect();
       },
       false,
     );
@@ -233,5 +240,139 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     menuItem.on("pointerdown", callback);
+  }
+
+  private showLevelSelect(): void {
+    if (this.levelSelectOverlay) {
+      this.levelSelectOverlay.setVisible(true);
+      return;
+    }
+
+    const { width, height } = this.cameras.main;
+    const progressionManager = getProgressionManager();
+    const levels = progressionManager.getAllLevels();
+
+    const playableLevels = new Set<string>([
+      "Level01_ValmikiAshram",
+      "Level02_SacredYajna",
+      "Level03_BrothersTraining",
+      "Level04_SagesRequest",
+      "Level05_TatakasTerror",
+    ]);
+
+    const dim = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0.72)
+      .setOrigin(0)
+      .setInteractive();
+    dim.on("pointerdown", () => this.hideLevelSelect());
+
+    const panel = this.add
+      .rectangle(width / 2, height / 2, width * 0.78, height * 0.84, 0x101b10, 0.95)
+      .setStrokeStyle(3, 0xdeb650);
+
+    const title = this.add
+      .text(width / 2, 82, "Level Select", {
+        fontFamily: "serif",
+        fontSize: "40px",
+        color: "#FFD700",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    const subtitle = this.add
+      .text(width / 2, 118, "Select an unlocked level. Later Kandas are coming soon.", {
+        fontFamily: "Arial",
+        fontSize: "16px",
+        color: "#DDDDDD",
+      })
+      .setOrigin(0.5);
+
+    const closeButton = this.add
+      .text(width / 2 + width * 0.35, 82, "[Close]", {
+        fontFamily: "Arial",
+        fontSize: "18px",
+        color: "#FFFFFF",
+      })
+      .setOrigin(0.5)
+      .setInteractive();
+    closeButton.on("pointerdown", () => this.hideLevelSelect());
+
+    const overlayChildren: Phaser.GameObjects.GameObject[] = [
+      dim,
+      panel,
+      title,
+      subtitle,
+      closeButton,
+    ];
+
+    let y = 160;
+    let currentKanda = "";
+
+    for (const level of levels) {
+      if (level.kanda !== currentKanda) {
+        currentKanda = level.kanda;
+        const kandaHeader = this.add.text(width / 2 - width * 0.34, y, `${currentKanda} Kanda`, {
+          fontFamily: "serif",
+          fontSize: "24px",
+          color: "#FFD700",
+          fontStyle: "bold",
+        });
+        overlayChildren.push(kandaHeader);
+        y += 34;
+      }
+
+      const implemented = playableLevels.has(level.key);
+      const unlocked = level.unlocked;
+
+      let suffix = "";
+      let color = "#9E9E9E";
+      if (!implemented) {
+        suffix = " - Coming Soon";
+        color = "#7A7A7A";
+      } else if (!unlocked) {
+        suffix = " - Locked";
+        color = "#8F8F8F";
+      } else {
+        color = "#FFFFFF";
+      }
+
+      const levelLine = this.add
+        .text(
+          width / 2 - width * 0.34,
+          y,
+          `${level.order}. ${level.name}${suffix}`,
+          {
+            fontFamily: "Arial",
+            fontSize: "20px",
+            color,
+          },
+        )
+        .setOrigin(0, 0);
+
+      if (implemented && unlocked) {
+        levelLine.setInteractive();
+        levelLine.on("pointerover", () => levelLine.setColor("#FFD700"));
+        levelLine.on("pointerout", () => levelLine.setColor("#FFFFFF"));
+        levelLine.on("pointerdown", () => {
+          this.hideLevelSelect();
+          this.scene.start(level.key);
+        });
+      }
+
+      overlayChildren.push(levelLine);
+      y += 30;
+    }
+
+    this.levelSelectOverlay = this.add.container(0, 0, overlayChildren);
+    this.levelSelectOverlay.setDepth(2000);
+  }
+
+  private hideLevelSelect(): void {
+    if (!this.levelSelectOverlay) {
+      return;
+    }
+
+    this.levelSelectOverlay.destroy(true);
+    this.levelSelectOverlay = undefined;
   }
 }
