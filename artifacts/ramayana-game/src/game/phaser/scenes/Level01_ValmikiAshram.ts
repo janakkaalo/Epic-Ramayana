@@ -220,7 +220,7 @@ export class Level01_ValmikiAshram extends Phaser.Scene {
     // Subtle sway animation
     this.tweens.add({
       targets: tree,
-      x: x - 3,
+      x: -3,
       duration: 2000 + Phaser.Math.Between(0, 1000),
       yoyo: true,
       repeat: -1,

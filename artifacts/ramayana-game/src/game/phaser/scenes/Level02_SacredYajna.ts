@@ -369,14 +369,14 @@ export class Level02_SacredYajna extends Phaser.Scene {
     ground.setStrokeStyle(2, 0xf9a825);
     this.platforms.add(ground);
 
-    // Tutorial platforms (ascending heights)
+    // Tutorial platforms (gentle progression: each step is jump-reachable)
     const platformData = [
-      { x: 150, y: 480, width: 120, height: 15 }, // Low platform
-      { x: 300, y: 420, width: 100, height: 15 }, // Medium platform
-      { x: 450, y: 360, width: 100, height: 15 }, // Higher platform
-      { x: 600, y: 300, width: 120, height: 15 }, // Highest platform
-      { x: 680, y: 420, width: 100, height: 15 }, // Descending
-      { x: 550, y: 480, width: 80, height: 15 }, // Near ground
+      { x: 170, y: 500, width: 130, height: 15 }, // Step 1
+      { x: 320, y: 450, width: 120, height: 15 }, // Step 2
+      { x: 470, y: 400, width: 120, height: 15 }, // Step 3
+      { x: 620, y: 350, width: 130, height: 15 }, // Step 4
+      { x: 730, y: 450, width: 120, height: 15 }, // Return path
+      { x: 580, y: 500, width: 110, height: 15 }, // Near-ground support
     ];
 
     platformData.forEach((data) => {
@@ -399,6 +399,7 @@ export class Level02_SacredYajna extends Phaser.Scene {
     // Young Rama (smaller sprite for 5-year-old)
     this.player = new Player(this, 100, 500);
     this.player.setScale(0.6); // Smaller scale for young child
+    this.player.setJumpVelocity(-500); // Slight boost for tutorial readability
   }
 
   private createCollectibles(): void {
@@ -410,27 +411,28 @@ export class Level02_SacredYajna extends Phaser.Scene {
     const collectibleData = [
       // Ground level
       { x: 200, y: 530, type: "flower" },
-      { x: 500, y: 530, type: "fruit" },
+      { x: 520, y: 530, type: "fruit" },
 
       // Low platforms
-      { x: 150, y: 450, type: "flower" },
-      { x: 550, y: 450, type: "fruit" },
+      { x: 170, y: 470, type: "flower" },
+      { x: 580, y: 470, type: "fruit" },
 
       // Medium platforms
-      { x: 300, y: 390, type: "flower" },
-      { x: 680, y: 390, type: "fruit" },
+      { x: 320, y: 420, type: "flower" },
+      { x: 730, y: 420, type: "fruit" },
 
       // High platforms
-      { x: 450, y: 330, type: "flower" },
-      { x: 600, y: 270, type: "fruit" },
+      { x: 470, y: 370, type: "flower" },
+      { x: 620, y: 320, type: "fruit" },
 
       // Extra collectibles
-      { x: 400, y: 480, type: "flower" },
-      { x: 350, y: 200, type: "special" }, // Special golden flower at top
+      { x: 400, y: 485, type: "flower" },
+      { x: 650, y: 300, type: "special" }, // Special golden flower near top path
     ];
 
     collectibleData.forEach((data, index) => {
       const item = this.createCollectibleItem(data.x, data.y, data.type);
+      item.setData("collected", false);
       this.collectibles.add(item);
     });
   }
@@ -577,15 +579,31 @@ export class Level02_SacredYajna extends Phaser.Scene {
     player: Phaser.Types.Physics.Arcade.GameObjectWithBody,
     item: Phaser.Types.Physics.Arcade.GameObjectWithBody,
   ): void {
+    const collectible = item as Phaser.GameObjects.Container;
+
+    // Overlap callbacks run every frame; guard against duplicate collection.
+    if (collectible.getData("collected")) {
+      return;
+    }
+
+    collectible.setData("collected", true);
+
+    const body = collectible.body as Phaser.Physics.Arcade.Body | undefined;
+    if (body) {
+      body.enable = false;
+    }
+
+    this.collectibles.remove(collectible, false, false);
+
     // Collect animation
     this.tweens.add({
-      targets: item,
+      targets: collectible,
       scale: 1.5,
       alpha: 0,
-      y: (item as Phaser.GameObjects.Container).y - 50,
+      y: collectible.y - 50,
       duration: 500,
       onComplete: () => {
-        item.destroy();
+        collectible.destroy();
       },
     });
 

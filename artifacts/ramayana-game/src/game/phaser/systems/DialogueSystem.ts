@@ -43,6 +43,8 @@ export class DialogueSystem {
   private isTyping: boolean = false;
   private textRevealTimer?: Phaser.Time.TimerEvent;
   private autoAdvanceTimer?: Phaser.Time.TimerEvent;
+  private onSpaceKeyDown?: () => void;
+  private onPointerDown?: () => void;
 
   // Visual settings
   private readonly BOX_WIDTH = 1100;
@@ -54,6 +56,11 @@ export class DialogueSystem {
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.create();
+
+    // Ensure listeners/timers are cleaned if the scene shuts down unexpectedly.
+    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.destroy();
+    });
   }
 
   /**
@@ -126,13 +133,11 @@ export class DialogueSystem {
     });
 
     // Input handling
-    this.scene.input.keyboard?.on("keydown-SPACE", () => {
-      this.handleInput();
-    });
+    this.onSpaceKeyDown = () => this.handleInput();
+    this.onPointerDown = () => this.handleInput();
 
-    this.scene.input.on("pointerdown", () => {
-      this.handleInput();
-    });
+    this.scene.input.keyboard?.on("keydown-SPACE", this.onSpaceKeyDown);
+    this.scene.input.on("pointerdown", this.onPointerDown);
   }
 
   /**
@@ -377,6 +382,11 @@ export class DialogueSystem {
         this.continueIndicator.setVisible(true);
       }
     } else {
+      if (this.autoAdvanceTimer) {
+        this.autoAdvanceTimer.destroy();
+        this.autoAdvanceTimer = undefined;
+      }
+
       // Advance to next dialogue
       this.nextDialogue();
     }
@@ -387,6 +397,11 @@ export class DialogueSystem {
    */
   private nextDialogue(): void {
     if (!this.currentSequence) return;
+
+    if (this.autoAdvanceTimer) {
+      this.autoAdvanceTimer.destroy();
+      this.autoAdvanceTimer = undefined;
+    }
 
     this.currentIndex++;
 
@@ -423,6 +438,16 @@ export class DialogueSystem {
    * Destroy the dialogue system
    */
   public destroy(): void {
+    if (this.onSpaceKeyDown) {
+      this.scene.input.keyboard?.off("keydown-SPACE", this.onSpaceKeyDown);
+      this.onSpaceKeyDown = undefined;
+    }
+
+    if (this.onPointerDown) {
+      this.scene.input.off("pointerdown", this.onPointerDown);
+      this.onPointerDown = undefined;
+    }
+
     if (this.textRevealTimer) {
       this.textRevealTimer.destroy();
     }
@@ -430,8 +455,9 @@ export class DialogueSystem {
     if (this.autoAdvanceTimer) {
       this.autoAdvanceTimer.destroy();
     }
-
-    this.container.destroy();
+    if (this.container) {
+      this.container.destroy();
+    }
   }
 }
 

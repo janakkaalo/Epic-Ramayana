@@ -32,6 +32,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   protected currentPatrolIndex: number = 0;
   protected aggroTarget?: Phaser.GameObjects.GameObject;
   protected lastStateChange: number = 0;
+  private healthBarGraphics?: Phaser.GameObjects.Graphics;
+  private healthBarUpdateHandler?: () => void;
 
   constructor(
     scene: Phaser.Scene,
@@ -40,7 +42,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     enemyId: CharacterId,
     texture: string = "rakshasa-spritesheet",
   ) {
-    super(scene, x, y, texture);
+    super(scene, x, y, texture, "0");
 
     this.enemyId = enemyId;
     this.particleManager = new ParticleEffectsManager(scene);
@@ -48,9 +50,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     // Add to scene
     scene.add.existing(this);
     scene.physics.add.existing(this);
-
-    // Draw detailed enemy sprite
-    this.drawEnemySprite();
 
     // Get stats from config
     const stats = CHARACTERS[this.enemyId];
@@ -234,7 +233,20 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     // Update bar position and health every frame
     this.scene.events.on("update", updateBar);
-    (this as any).healthBarGraphics = barGraphics;
+    this.healthBarGraphics = barGraphics;
+    this.healthBarUpdateHandler = updateBar;
+
+    this.once(Phaser.GameObjects.Events.DESTROY, () => {
+      if (this.healthBarUpdateHandler) {
+        this.scene.events.off("update", this.healthBarUpdateHandler);
+        this.healthBarUpdateHandler = undefined;
+      }
+
+      if (this.healthBarGraphics) {
+        this.healthBarGraphics.destroy();
+        this.healthBarGraphics = undefined;
+      }
+    });
   }
 
   private setupPhysics(): void {

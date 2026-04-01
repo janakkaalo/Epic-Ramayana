@@ -24,11 +24,13 @@ export class Level05_TatakasTerror extends Phaser.Scene {
 
   // Boss state
   private tatakaBoss!: Phaser.Physics.Arcade.Sprite;
+  private tatakaVisual?: Phaser.GameObjects.Graphics;
   private bossHealth: number = 500;
   private bossMaxHealth: number = 500;
   private currentPhase: TatakaBossPhase = 1;
   private isAttacking: boolean = false;
   private totalDamageDealt: number = 0;
+  private battleComplete: boolean = false;
 
   // UI elements
   private bossHealthBar!: Phaser.GameObjects.Graphics;
@@ -55,6 +57,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
     // Set up camera
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, width * 2, height);
+    this.physics.world.setBounds(0, 0, width * 2, height);
 
     // Initialize systems
     this.dialogueSystem = new DialogueSystem(this);
@@ -68,6 +71,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
 
     // Set up collisions
     this.physics.add.collider(this.player, this.platforms);
+    this.physics.add.collider(this.tatakaBoss, this.platforms);
 
     // Set up arrow-boss collision
     this.setupArrowCollisions();
@@ -77,12 +81,17 @@ export class Level05_TatakasTerror extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    if (!this.tatakaBoss) return;
-
     this.player.update(time, delta);
+
+    if (this.battleComplete || !this.tatakaBoss || !this.tatakaBoss.active) {
+      return;
+    }
 
     // Update boss
     this.updateBossAI(time, delta);
+    this.clampBossPosition();
+    this.syncBossVisual();
+    this.updateArrowBossHits();
     this.updateBossPhase();
     this.updateHUD();
   }
@@ -207,8 +216,8 @@ export class Level05_TatakasTerror extends Phaser.Scene {
     const { width, height } = this.cameras.main;
 
     // Create boss sprite
-    this.tatakaBoss = this.physics.add.sprite(width / 2, 250, "");
-    this.tatakaBoss.setVisible(false); // Hide placeholder
+    this.tatakaBoss = this.physics.add.sprite(width / 2, 250, "__WHITE");
+    this.tatakaBoss.setAlpha(0.01); // Visuals are custom graphics drawn separately
 
     // Draw boss using graphics (fierce demon form)
     const bossGraphic = this.add.graphics();
@@ -290,11 +299,20 @@ export class Level05_TatakasTerror extends Phaser.Scene {
     bossGraphic.strokeCircle(width / 2, 250 - 30, 105);
 
     // Store graphics reference
-    (this.tatakaBoss as any).graphics = bossGraphic;
+    this.tatakaVisual = bossGraphic;
+    this.tatakaVisual.setDepth(60);
+
+    this.tatakaBoss.setData("visualAnchorX", width / 2);
+    this.tatakaBoss.setData("visualAnchorY", 250);
 
     // Set up physics body for collision
-    (this.tatakaBoss.body as Phaser.Physics.Arcade.Body).setSize(80, 120);
-    (this.tatakaBoss.body as Phaser.Physics.Arcade.Body).setOffset(-40, -60);
+    const body = this.tatakaBoss.body as Phaser.Physics.Arcade.Body;
+    body.setSize(90, 130, true);
+    body.setAllowGravity(false);
+    body.setImmovable(true);
+    body.setCollideWorldBounds(true);
+
+    this.syncBossVisual();
   }
 
   /**
@@ -302,7 +320,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
    */
   private startBattle(): void {
     this.instructionsText?.setText(
-      "Tataka appears! Defeat her to protect the yajna. 3 Phases - watch for attacks!",
+      "Hold SPACE to aim (Mouse or Up/Down), release to shoot. Defeat Tataka!",
     );
 
     this.time.delayedCall(2000, () => {
@@ -492,19 +510,24 @@ export class Level05_TatakasTerror extends Phaser.Scene {
    * Handle arrow hitting boss
    */
   private handleBossHit(damage: number = 25): void {
-    this.bossHealth -= damage;
-    this.totalDamageDealt += damage;
+    if (this.battleComplete || !this.tatakaBoss.active) {
+      return;
+    }
+
+    const appliedDamage = Math.max(10, Math.floor(damage));
+    this.bossHealth = Math.max(0, this.bossHealth - appliedDamage);
+    this.totalDamageDealt += appliedDamage;
 
     // Boss hit effect
-    if ((this.tatakaBoss as any).graphics) {
-      (this.tatakaBoss as any).graphics.setAlpha(0.5);
+    if (this.tatakaVisual) {
+      this.tatakaVisual.setAlpha(0.5);
       this.time.delayedCall(100, () => {
-        (this.tatakaBoss as any).graphics.setAlpha(1);
+        this.tatakaVisual?.setAlpha(1);
       });
     }
 
     // Gain dharma for damage
-    this.totalDharmaScore += Math.floor(damage / 5);
+    this.totalDharmaScore += Math.floor(appliedDamage / 4);
 
     // Check phase transition
     this.updateBossPhase();
@@ -537,8 +560,17 @@ export class Level05_TatakasTerror extends Phaser.Scene {
    * Complete the battle
    */
   private completeBattle(): void {
+    if (this.battleComplete) {
+      return;
+    }
+    this.battleComplete = true;
+
     // Boss defeated
-    this.tatakaBoss.destroy();
+    if (this.tatakaBoss.active) {
+      this.tatakaBoss.destroy();
+    }
+    this.tatakaVisual?.destroy();
+    this.tatakaVisual = undefined;
     this.isAttacking = false;
 
     // Show victory screen
@@ -582,8 +614,25 @@ export class Level05_TatakasTerror extends Phaser.Scene {
     );
     progressionManager.unlockAstra("AGNEYASTRA"); // Agneyastra unlocked
 
+    this.add
+      .text(
+        width / 2,
+        height / 2 + 100,
+        "Press SPACE to return to Main Menu",
+        {
+          fontSize: "22px",
+          fontFamily: "Arial",
+          color: "#DDDDDD",
+          stroke: "#000000",
+          strokeThickness: 2,
+        },
+      )
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
     // Continue option
-    this.input.keyboard?.on("keydown-SPACE", () => {
+    this.input.keyboard?.once("keydown-SPACE", () => {
       this.scene.start("MainMenuScene");
     });
   }
@@ -592,11 +641,47 @@ export class Level05_TatakasTerror extends Phaser.Scene {
    * Setup arrow-boss collision
    */
   private setupArrowCollisions(): void {
-    this.events.on("arrow-target-hit", (arrow: any, target: any) => {
-      if (target === this.tatakaBoss) {
-        this.handleBossHit();
+    this.events.on("arrow-shot", () => {
+      const arrows = this.player.getBow().getArrows();
+      const latestArrow = arrows[arrows.length - 1];
+      if (!latestArrow || !this.tatakaBoss || !this.tatakaBoss.active) {
+        return;
       }
+
+      latestArrow.setData("prevX", latestArrow.x);
+      latestArrow.setData("prevY", latestArrow.y);
+
+      this.physics.add.overlap(
+        latestArrow,
+        this.tatakaBoss,
+        (arrowObj) => {
+          const arrow = arrowObj as Phaser.Physics.Arcade.Sprite & {
+            hit?: (target?: Phaser.GameObjects.GameObject) => void;
+          };
+
+          if (arrow.hit) {
+            arrow.hit(this.tatakaBoss);
+          } else {
+            arrow.destroy();
+          }
+        },
+        undefined,
+        this,
+      );
     });
+
+    this.events.on(
+      "arrow-hit",
+      (data: {
+        target?: Phaser.GameObjects.GameObject;
+        damage: number;
+      }) => {
+        if (data.target === this.tatakaBoss) {
+          this.handleBossHit(data.damage);
+        }
+      },
+      this,
+    );
   }
 
   /**
@@ -651,6 +736,84 @@ export class Level05_TatakasTerror extends Phaser.Scene {
    */
   private updateHUD(): void {
     this.drawBossHealthBar();
+    this.phaseText?.setText(
+      `Phase: ${this.currentPhase}/3  |  HP: ${Math.max(0, this.bossHealth)}/${this.bossMaxHealth}`,
+    );
+  }
+
+  private updateArrowBossHits(): void {
+    const arrows = this.player.getBow().getArrows();
+    if (arrows.length === 0) return;
+
+    for (const arrow of arrows) {
+      if (!arrow.active) continue;
+
+      const prevX = (arrow.getData("prevX") as number | undefined) ?? arrow.x;
+      const prevY = (arrow.getData("prevY") as number | undefined) ?? arrow.y;
+      const currX = arrow.x;
+      const currY = arrow.y;
+
+      if (
+        this.segmentHitsCircle(
+          prevX,
+          prevY,
+          currX,
+          currY,
+          this.tatakaBoss.x,
+          this.tatakaBoss.y - 10,
+          62,
+        )
+      ) {
+        arrow.hit(this.tatakaBoss);
+      }
+
+      arrow.setData("prevX", currX);
+      arrow.setData("prevY", currY);
+    }
+  }
+
+  private segmentHitsCircle(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    cx: number,
+    cy: number,
+    radius: number,
+  ): boolean {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const segLenSq = dx * dx + dy * dy;
+
+    if (segLenSq === 0) {
+      return Phaser.Math.Distance.Between(x1, y1, cx, cy) <= radius;
+    }
+
+    const t = Phaser.Math.Clamp(
+      ((cx - x1) * dx + (cy - y1) * dy) / segLenSq,
+      0,
+      1,
+    );
+
+    const closestX = x1 + dx * t;
+    const closestY = y1 + dy * t;
+
+    return Phaser.Math.Distance.Between(closestX, closestY, cx, cy) <= radius;
+  }
+
+  private clampBossPosition(): void {
+    const { width, height } = this.cameras.main;
+    this.tatakaBoss.x = Phaser.Math.Clamp(this.tatakaBoss.x, 120, width * 2 - 120);
+    this.tatakaBoss.y = Phaser.Math.Clamp(this.tatakaBoss.y, 140, height - 100);
+  }
+
+  private syncBossVisual(): void {
+    if (!this.tatakaVisual) return;
+
+    const anchorX = this.tatakaBoss.getData("visualAnchorX") as number;
+    const anchorY = this.tatakaBoss.getData("visualAnchorY") as number;
+
+    this.tatakaVisual.setPosition(this.tatakaBoss.x - anchorX, this.tatakaBoss.y - anchorY);
   }
 
   /**

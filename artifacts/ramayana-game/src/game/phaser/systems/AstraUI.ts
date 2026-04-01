@@ -1,6 +1,13 @@
 import Phaser from "phaser";
 import { ASTRAS, type AstraId } from "../config/astras";
 
+export interface AstraUIOptions {
+  startX?: number;
+  startY?: number;
+  slotSize?: number;
+  slotSpacing?: number;
+}
+
 /**
  * AstraUI - Divine Weapon Selection System
  * Displays unlocked Astras and allows player to select them
@@ -13,13 +20,18 @@ export class AstraUI {
   private selectedAstra: AstraId | null = null;
   private astraSlots: Map<AstraId, AstraSlot> = new Map();
 
-  private readonly SLOT_SIZE = 60;
-  private readonly SLOT_SPACING = 10;
-  private readonly START_X = 20;
-  private readonly START_Y = 20;
+  private slotSize: number;
+  private slotSpacing: number;
+  private startX: number;
+  private startY: number;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, options: AstraUIOptions = {}) {
     this.scene = scene;
+    this.slotSize = options.slotSize ?? 60;
+    this.slotSpacing = options.slotSpacing ?? 10;
+    this.startX = options.startX ?? 20;
+    this.startY = options.startY ?? 180;
+
     this.create();
     this.setupInput();
   }
@@ -49,8 +61,8 @@ export class AstraUI {
 
     // Instructions text
     const instructions = this.scene.add.text(
-      this.START_X,
-      this.START_Y + (this.SLOT_SIZE + this.SLOT_SPACING) * 5 + 20,
+      this.startX,
+      this.startY + (this.slotSize + this.slotSpacing) * 5 + 20,
       "Press 1-5: Select Astra",
       {
         fontSize: "16px",
@@ -68,8 +80,8 @@ export class AstraUI {
    */
   private createAstraSlot(astra: AstraId, index: number): AstraSlot {
     const astraData = ASTRAS[astra];
-    const x = this.START_X;
-    const y = this.START_Y + index * (this.SLOT_SIZE + this.SLOT_SPACING);
+    const x = this.startX;
+    const y = this.startY + index * (this.slotSize + this.slotSpacing);
 
     const slotContainer = this.scene.add.container(x, y);
 
@@ -85,7 +97,7 @@ export class AstraUI {
 
     // Key number
     const keyText = this.scene.add.text(
-      this.SLOT_SIZE - 8,
+      this.slotSize - 8,
       8,
       (index + 1).toString(),
       {
@@ -102,8 +114,8 @@ export class AstraUI {
 
     // Name text (below slot)
     const nameText = this.scene.add.text(
-      this.SLOT_SIZE + 10,
-      this.SLOT_SIZE / 2,
+      this.slotSize + 10,
+      this.slotSize / 2,
       astraData.name,
       {
         fontSize: "18px",
@@ -123,7 +135,7 @@ export class AstraUI {
     // Mana cost indicator
     const manaCost = this.scene.add.text(
       8,
-      this.SLOT_SIZE - 8,
+      this.slotSize - 8,
       `${astraData.manaCost}`,
       {
         fontSize: "16px",
@@ -164,7 +176,7 @@ export class AstraUI {
   ): void {
     g.clear();
 
-    const size = this.SLOT_SIZE;
+    const size = this.slotSize;
 
     // Background fill
     if (selected) {
@@ -205,8 +217,8 @@ export class AstraUI {
   ): void {
     g.clear();
 
-    const centerX = this.SLOT_SIZE / 2;
-    const centerY = this.SLOT_SIZE / 2;
+    const centerX = this.slotSize / 2;
+    const centerY = this.slotSize / 2;
     const size = 20;
 
     const alpha = unlocked ? 1 : 0.3;
@@ -424,9 +436,9 @@ export class AstraUI {
     g.clear();
 
     if (slot.cooldownProgress > 0) {
-      const centerX = this.SLOT_SIZE / 2;
-      const centerY = this.SLOT_SIZE / 2;
-      const radius = this.SLOT_SIZE / 2;
+      const centerX = this.slotSize / 2;
+      const centerY = this.slotSize / 2;
+      const radius = this.slotSize / 2;
 
       // Semi-transparent black overlay
       g.fillStyle(0x000000, 0.7);

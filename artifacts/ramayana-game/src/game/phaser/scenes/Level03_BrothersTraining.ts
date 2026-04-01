@@ -31,6 +31,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   private targetsHitInPhase: number = 0;
   private requiredHitsPerPhase: number[] = [5, 3, 3, 3]; // Targets needed for each phase
   private totalDharmaScore: number = 0;
+  private levelCompleted: boolean = false;
 
   // UI elements
   private phaseText!: Phaser.GameObjects.Text;
@@ -55,6 +56,8 @@ export class Level03_BrothersTraining extends Phaser.Scene {
 
     // Create player
     this.player = new Player(this, 150, 400);
+    this.player.setJumpVelocity(-560);
+    this.player.getBow().setWindEnabled(false);
 
     // Create target group
     this.targets = this.physics.add.group({
@@ -67,6 +70,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     // Set up camera
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, width * 2, height);
+    this.physics.world.setBounds(0, 0, width * 2, height);
 
     // Initialize dialogue system
     this.dialogueSystem = new DialogueSystem(this);
@@ -92,6 +96,132 @@ export class Level03_BrothersTraining extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     this.player.update(time, delta);
+    this.updateMovingTargets(time);
+    this.updateArrowTargetHits();
+  }
+
+  private updateArrowTargetHits(): void {
+    const arrows = this.player.getBow().getArrows();
+    if (arrows.length === 0 || this.targets.getLength() === 0) return;
+
+    for (const arrowObj of arrows) {
+      const arrow = arrowObj as Phaser.Physics.Arcade.Sprite & {
+        active: boolean;
+        hit?: (target?: Phaser.GameObjects.GameObject) => void;
+      };
+
+      if (!arrow.active) continue;
+
+      const prevX = (arrow.getData("prevX") as number | undefined) ?? arrow.x;
+      const prevY = (arrow.getData("prevY") as number | undefined) ?? arrow.y;
+      const currX = arrow.x;
+      const currY = arrow.y;
+
+      for (const targetObj of this.targets.getChildren()) {
+        const target = targetObj as Phaser.Physics.Arcade.Sprite;
+
+        if (!target.active || target.getData("isHit")) {
+          continue;
+        }
+
+        if (
+          this.segmentHitsCircle(
+            prevX,
+            prevY,
+            currX,
+            currY,
+            target.x,
+            target.y,
+            this.getTargetHitRadius(target),
+          )
+        ) {
+          if (arrow.hit) {
+            arrow.hit(target);
+          } else {
+            arrow.destroy();
+          }
+          break;
+        }
+      }
+
+      arrow.setData("prevX", currX);
+      arrow.setData("prevY", currY);
+    }
+  }
+
+  private getTargetHitRadius(target: Phaser.Physics.Arcade.Sprite): number {
+    const isBullseye = !!target.getData("isBullseye");
+    return isBullseye ? 38 : 34;
+  }
+
+  private updateMovingTargets(time: number): void {
+    if (this.currentPhase !== 4) return;
+
+    const t = time / 1000;
+
+    for (const targetObj of this.targets.getChildren()) {
+      const target = targetObj as Phaser.Physics.Arcade.Sprite;
+
+      if (!target.active || target.getData("isHit")) continue;
+      if (!target.getData("isMoving")) continue;
+
+      const baseX = (target.getData("baseX") as number | undefined) ?? target.x;
+      const baseY = (target.getData("baseY") as number | undefined) ?? target.y;
+      const movePattern = (target.getData("movePattern") as string | undefined) ?? "horizontal";
+      const moveSpeed = (target.getData("moveSpeed") as number | undefined) ?? 100;
+
+      const amplitude = Phaser.Math.Clamp(moveSpeed, 60, 140);
+      let targetX = baseX;
+      let targetY = baseY;
+
+      if (movePattern === "horizontal") {
+        targetX = baseX + Math.sin(t * 1.8) * amplitude;
+      } else if (movePattern === "vertical") {
+        targetY = baseY + Math.cos(t * 1.8) * (amplitude * 0.7);
+      } else {
+        targetX = baseX + Math.sin(t * 1.6) * (amplitude * 0.8);
+        targetY = baseY + Math.cos(t * 2.0) * (amplitude * 0.5);
+      }
+
+      target.setPosition(targetX, targetY);
+
+      const outerCircle = (target as any).outerCircle as Phaser.GameObjects.Arc | undefined;
+      const innerCircle = (target as any).innerCircle as Phaser.GameObjects.Arc | undefined;
+      const bullseye = (target as any).bullseye as Phaser.GameObjects.Arc | undefined;
+
+      outerCircle?.setPosition(targetX, targetY);
+      innerCircle?.setPosition(targetX, targetY);
+      bullseye?.setPosition(targetX, targetY);
+    }
+  }
+
+  private segmentHitsCircle(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    cx: number,
+    cy: number,
+    radius: number,
+  ): boolean {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const segLenSq = dx * dx + dy * dy;
+
+    if (segLenSq === 0) {
+      return Phaser.Math.Distance.Between(x1, y1, cx, cy) <= radius;
+    }
+
+    const t = Phaser.Math.Clamp(
+      ((cx - x1) * dx + (cy - y1) * dy) / segLenSq,
+      0,
+      1,
+    );
+
+    const closestX = x1 + dx * t;
+    const closestY = y1 + dy * t;
+
+    return Phaser.Math.Distance.Between(closestX, closestY, cx, cy) <= radius;
   }
 
   /**
@@ -101,7 +231,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     const { width, height } = this.cameras.main;
 
     // Sky with clouds
-    this.add.rectangle(0, 0, width, height, 0x87ceeb).setOrigin(0);
+    this.add.rectangle(0, 0, width * 2, height, 0x87ceeb).setOrigin(0);
 
     // Decorative clouds
     for (let i = 0; i < 3; i++) {
@@ -186,9 +316,9 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     }
 
     // Training platforms
-    this.createPlatform(300, 450, 150, 20);
-    this.createPlatform(700, 400, 150, 20);
-    this.createPlatform(1100, 350, 150, 20);
+    this.createPlatform(320, 500, 150, 20);
+    this.createPlatform(720, 455, 150, 20);
+    this.createPlatform(1120, 420, 150, 20);
 
     this.platforms.refresh();
   }
@@ -221,38 +351,38 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     if (this.currentPhase === 1) {
       // Phase 1: Stationary targets at different heights
       const positions = [
-        { x: 600, y: groundY - 150, moving: false },
-        { x: 850, y: groundY - 150, moving: false },
-        { x: 1100, y: groundY - 150, moving: false },
+        { x: 600, y: groundY - 120, moving: false },
+        { x: 850, y: groundY - 120, moving: false },
+        { x: 1100, y: groundY - 120, moving: false },
         { x: 1350, y: groundY - 100, moving: false },
-        { x: 1600, y: groundY - 50, moving: false },
+        { x: 1600, y: groundY - 80, moving: false },
       ];
 
       positions.forEach((pos) => this.createTarget(pos.x, pos.y, pos.moving));
     } else if (this.currentPhase === 2) {
       // Phase 2: Distant targets (requiring full charge)
       const positions = [
-        { x: 1200, y: groundY - 200 },
-        { x: 1600, y: groundY - 200 },
-        { x: 2000, y: groundY - 150 },
+        { x: 1200, y: groundY - 160 },
+        { x: 1600, y: groundY - 170 },
+        { x: 2000, y: groundY - 140 },
       ];
 
       positions.forEach((pos) => this.createTarget(pos.x, pos.y, false));
     } else if (this.currentPhase === 3) {
       // Phase 3: Precision targets (bullseyes)
       const positions = [
-        { x: 700, y: groundY - 200 },
-        { x: 1100, y: groundY - 250 },
-        { x: 1500, y: groundY - 200 },
+        { x: 700, y: groundY - 170 },
+        { x: 1100, y: groundY - 190 },
+        { x: 1500, y: groundY - 170 },
       ];
 
       positions.forEach((pos) => this.createTarget(pos.x, pos.y, false, true)); // Add bullseye flag
     } else if (this.currentPhase === 4) {
       // Phase 4: Moving targets
       const positions = [
-        { x: 600, y: groundY - 150, movePattern: "horizontal" },
-        { x: 1000, y: groundY - 150, movePattern: "vertical" },
-        { x: 1400, y: groundY - 100, movePattern: "diagonal" },
+        { x: 600, y: groundY - 130, movePattern: "horizontal" },
+        { x: 1000, y: groundY - 140, movePattern: "vertical" },
+        { x: 1400, y: groundY - 110, movePattern: "diagonal" },
       ];
 
       positions.forEach((pos) => {
@@ -279,21 +409,42 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     const innerCircle = this.add.circle(x, y, 18, 0xffffff).setDepth(11);
 
     // Bullseye center (if needed)
-    if (isBullseye) {
-      this.add.circle(x, y, 8, 0xaa0000).setDepth(12);
-    }
+    const bullseye = isBullseye
+      ? this.add.circle(x, y, 8, 0xaa0000).setDepth(12)
+      : undefined;
 
     // Create physics sprite as container
-    const target = this.physics.add.sprite(x, y, "");
-    target.setVisible(false); // Hide the sprite, we're using graphics
-    target.setSize(50, 50);
+    const target = this.physics.add.sprite(x, y, "__WHITE");
+    target.setAlpha(0.01); // Keep an active body while visuals are custom circles
+    target.setSize(68, 68);
+    (target.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    (target.body as Phaser.Physics.Arcade.Body).setImmovable(true);
     target.setData("hitCount", 0);
     target.setData("isBullseye", isBullseye);
     target.setData("isMoving", isMoving);
+    target.setData("isHit", false);
+    target.setData("baseX", x);
+    target.setData("baseY", y);
 
     // Store graphics references
     (target as any).outerCircle = outerCircle;
     (target as any).innerCircle = innerCircle;
+    (target as any).bullseye = bullseye;
+
+    this.tweens.add({
+      targets: [outerCircle, innerCircle],
+      scale: { from: 1, to: 1.08 },
+      duration: 550,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    target.once(Phaser.GameObjects.Events.DESTROY, () => {
+      outerCircle.destroy();
+      innerCircle.destroy();
+      bullseye?.destroy();
+    });
 
     this.targets.add(target);
 
@@ -304,10 +455,47 @@ export class Level03_BrothersTraining extends Phaser.Scene {
    * Setup arrow-target collision detection
    */
   private setupArrowCollisions(): void {
-    // This would need to be set up from the Bow/Arrow system
-    // For now, we'll listen for arrow-target events
-    this.events.on("arrow-target-hit", (arrow: any, target: any) => {
-      this.handleTargetHit(target);
+    this.events.on(
+      "arrow-hit",
+      (data: {
+        target?: Phaser.GameObjects.GameObject;
+      }) => {
+        const target = data.target as Phaser.Physics.Arcade.Sprite | undefined;
+        if (!target || !this.targets.contains(target)) {
+          return;
+        }
+
+        this.handleTargetHit(target);
+      },
+      this,
+    );
+
+    // Register collisions for each newly fired arrow.
+    this.events.on("arrow-shot", () => {
+      const arrows = this.player.getBow().getArrows();
+      const latestArrow = arrows[arrows.length - 1];
+      if (!latestArrow) return;
+
+      latestArrow.setData("prevX", latestArrow.x);
+      latestArrow.setData("prevY", latestArrow.y);
+
+      this.physics.add.collider(
+        latestArrow,
+        this.platforms,
+        (arrowObj) => {
+          const arrow = arrowObj as Phaser.Physics.Arcade.Sprite & {
+            hit?: (target?: Phaser.GameObjects.GameObject) => void;
+          };
+
+          if (arrow.hit) {
+            arrow.hit();
+          } else {
+            arrow.destroy();
+          }
+        },
+        undefined,
+        this,
+      );
     });
   }
 
@@ -315,9 +503,20 @@ export class Level03_BrothersTraining extends Phaser.Scene {
    * Handle target hit
    */
   private handleTargetHit(target: Phaser.Physics.Arcade.Sprite): void {
+    if (target.getData("isHit")) {
+      return;
+    }
+
+    target.setData("isHit", true);
+
     // Mark target as hit
     const hitCount = target.getData("hitCount") || 0;
     target.setData("hitCount", hitCount + 1);
+
+    const body = target.body as Phaser.Physics.Arcade.Body | undefined;
+    if (body) {
+      body.enable = false;
+    }
 
     // Update visuals
     const isBullseye = target.getData("isBullseye");
@@ -328,9 +527,20 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     this.targetsHitInPhase++;
     this.updateHUD();
 
-    // Hide target if hit
-    if ((target as any).outerCircle) (target as any).outerCircle.setAlpha(0.3);
-    if ((target as any).innerCircle) (target as any).innerCircle.setAlpha(0.3);
+    // Animate target removal once hit
+    this.tweens.add({
+      targets: [
+        (target as any).outerCircle,
+        (target as any).innerCircle,
+        (target as any).bullseye,
+      ].filter(Boolean),
+      alpha: 0,
+      scale: 0.7,
+      duration: 250,
+      onComplete: () => {
+        target.destroy();
+      },
+    });
 
     // Check if phase complete
     if (
@@ -378,6 +588,11 @@ export class Level03_BrothersTraining extends Phaser.Scene {
    * Complete the level
    */
   private completeLevel(): void {
+    if (this.levelCompleted) {
+      return;
+    }
+    this.levelCompleted = true;
+
     // Stop player movement
     if (this.player.body) {
       (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
@@ -457,7 +672,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
       .setDepth(1000);
 
     // Listen for space to continue
-    this.input.keyboard?.on("keydown-SPACE", () => {
+    this.input.keyboard?.once("keydown-SPACE", () => {
       this.scene.start("Level04_SagesRequest");
     });
   }
@@ -509,7 +724,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
       .text(
         this.cameras.main.width / 2,
         this.cameras.main.height - 50,
-        "Arrow Keys: Move | SPACE: Aim/Shoot | SHIFT: Run",
+        "Arrow Keys: Move | Hold SPACE: Aim (Mouse or Up/Down), Release: Shoot",
         {
           fontSize: "16px",
           fontFamily: "Arial",
@@ -527,7 +742,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
       .text(
         this.cameras.main.width / 2,
         50,
-        "Hit all targets in Phase 1 to advance",
+        "Shoot the red-white circles (targets) to advance",
         {
           fontSize: "18px",
           fontFamily: "serif",

@@ -63,7 +63,7 @@ export const PHASER_CONFIG: Phaser.Types.Core.GameConfig = {
     default: "arcade",
     arcade: {
       gravity: { y: GAME_CONFIG.GRAVITY, x: 0 },
-      debug: import.meta.env.DEV, // Debug in development only
+      debug: import.meta.env.VITE_PHYSICS_DEBUG === "true",
       tileBias: 16,
     },
   },

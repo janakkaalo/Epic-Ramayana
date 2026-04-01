@@ -97,8 +97,8 @@ export class Arrow extends Phaser.Physics.Arcade.Sprite {
 
     body.setVelocity(velocityX, velocityY);
 
-    // Enable gravity for realistic arc
-    body.setGravityY(300);
+    // Keep an arc, but reduce drop so shots remain playable at medium range.
+    body.setGravityY(180);
 
     // Set size
     body.setSize(32, 8);
@@ -180,10 +180,17 @@ export class Arrow extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Check if arrow has gone off screen or too far
+    const camera = this.scene.cameras.main;
+    const minX = camera.scrollX - 100;
+    const maxX = camera.scrollX + camera.width + 100;
+    const minY = camera.scrollY - 100;
+    const maxY = camera.scrollY + camera.height + 100;
+
     if (
-      this.y > this.scene.cameras.main.height + 100 ||
-      this.x < -100 ||
-      this.x > this.scene.cameras.main.width + 100
+      this.y > maxY ||
+      this.y < minY ||
+      this.x < minX ||
+      this.x > maxX
     ) {
       this.destroy();
     }

@@ -38,16 +38,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private keyAim!: Phaser.Input.Keyboard.Key;
   private lastDustEmitTime: number = 0;
   private dustEmitInterval: number = 50; // Emit dust every 50ms
+  private jumpVelocity: number = GAME_CONFIG.PLAYER.JUMP_VELOCITY;
+  private keyboardAimElevation: number = -0.2;
+  private pointerAimActive: boolean = false;
+  private lastPointerX: number = 0;
+  private lastPointerY: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, "rama-spritesheet");
+    super(scene, x, y, "rama-spritesheet", "0");
 
     // Add to scene
     scene.add.existing(this);
     scene.physics.add.existing(this);
-
-    // Draw detailed player sprite
-    this.drawPlayerSprite();
 
     // Set up physics
     this.setupPhysics();
@@ -63,7 +65,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setupInput();
 
     // Play initial animation
-    this.play("rama-idle");
+    this.ensureCoreAnimations();
+    this.safePlay("rama-idle");
 
     // Create bow weapon
     this.bow = new Bow(scene, this);
@@ -73,6 +76,60 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Add depth sorting
     this.setDepth(100);
+  }
+
+  /**
+   * Ensure Rama's core animations exist and are valid.
+   * If asset generation failed, create a single-frame fallback animation set.
+   */
+  private ensureCoreAnimations(): void {
+    const textureKey = this.scene.textures.exists("rama-spritesheet")
+      ? "rama-spritesheet"
+      : "__MISSING";
+
+    const fallbackAnimations: Array<{ key: string; repeat: number }> = [
+      { key: "rama-idle", repeat: -1 },
+      { key: "rama-walk", repeat: -1 },
+      { key: "rama-run", repeat: -1 },
+      { key: "rama-jump", repeat: 0 },
+      { key: "rama-aim", repeat: 0 },
+      { key: "rama-shoot", repeat: 0 },
+      { key: "rama-die", repeat: 0 },
+    ];
+
+    fallbackAnimations.forEach(({ key, repeat }) => {
+      const existing = this.scene.anims.get(key);
+      const isValid =
+        !!existing &&
+        existing.frames.length > 0 &&
+        Number.isFinite(existing.duration);
+
+      if (isValid) {
+        return;
+      }
+
+      if (existing) {
+        this.scene.anims.remove(key);
+      }
+
+      this.scene.anims.create({
+        key,
+        frames: [{ key: textureKey, frame: "0" }],
+        frameRate: 1,
+        repeat,
+      });
+    });
+  }
+
+  /**
+   * Guard animation playback to avoid runtime crashes from malformed anim defs.
+   */
+  private safePlay(key: string): void {
+    const animation = this.scene.anims.get(key);
+    if (!animation) return;
+    if (animation.frames.length === 0) return;
+    if (!Number.isFinite(animation.duration)) return;
+    this.play(key);
   }
 
   /**
@@ -265,9 +322,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Jump
     if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
       if (onGround) {
-        body.setVelocityY(GAME_CONFIG.PLAYER.JUMP_VELOCITY);
+        body.setVelocityY(this.jumpVelocity);
       } else if (this.canDoubleJump && !this.hasDoubleJumped) {
-        body.setVelocityY(GAME_CONFIG.PLAYER.JUMP_VELOCITY * 0.8);
+        body.setVelocityY(this.jumpVelocity * 0.8);
         this.hasDoubleJumped = true;
       }
     }
@@ -284,31 +341,39 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   ): void {
     if (!onGround) {
       if (this.anims.currentAnim?.key !== "rama-jump") {
-        this.play("rama-jump");
+        this.safePlay("rama-jump");
       }
     } else if (Math.abs(body.velocity.x) > 10) {
       if (this.isRunning) {
         if (this.anims.currentAnim?.key !== "rama-run") {
-          this.play("rama-run");
+          this.safePlay("rama-run");
         }
       } else {
         if (this.anims.currentAnim?.key !== "rama-walk") {
-          this.play("rama-walk");
+          this.safePlay("rama-walk");
         }
       }
     } else {
       if (this.anims.currentAnim?.key !== "rama-idle") {
-        this.play("rama-idle");
+        this.safePlay("rama-idle");
       }
     }
   }
 
   private enterAimMode(): void {
     this.isAiming = true;
-    this.play("rama-aim");
+    this.safePlay("rama-aim");
+
+    const pointer = this.scene.input.activePointer;
+    this.lastPointerX = pointer.x;
+    this.lastPointerY = pointer.y;
+    this.pointerAimActive = false;
+
+    // Default keyboard aim starts slightly upward in facing direction.
+    this.keyboardAimElevation = -0.2;
 
     // Slow down time for aiming
-    this.scene.physics.world.timeScale = 1 / GAME_CONFIG.COMBAT.AIM_SLOW_MOTION;
+    this.scene.physics.world.timeScale = GAME_CONFIG.COMBAT.AIM_SLOW_MOTION;
 
     // Start bow aiming
     this.bow.startAiming();
@@ -331,13 +396,57 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   private handleAiming(delta: number): void {
-    // Get mouse or pointer position
+    // Support both mouse aiming and keyboard-only aiming.
     const pointer = this.scene.input.activePointer;
     const camera = this.scene.cameras.main;
+    const pointerMoved =
+      Math.abs(pointer.x - this.lastPointerX) > 2 ||
+      Math.abs(pointer.y - this.lastPointerY) > 2;
+    const pointerInsideViewport =
+      pointer.x >= 0 &&
+      pointer.x <= camera.width &&
+      pointer.y >= 0 &&
+      pointer.y <= camera.height;
 
-    // Convert pointer to world coordinates
-    const targetX = pointer.x + camera.scrollX;
-    const targetY = pointer.y + camera.scrollY;
+    if (pointerInsideViewport && pointerMoved) {
+      this.pointerAimActive = true;
+    }
+
+    if (this.cursors.up.isDown) {
+      this.keyboardAimElevation -= (delta / 1000) * 1.6;
+      this.pointerAimActive = false;
+    }
+
+    if (this.cursors.down.isDown) {
+      this.keyboardAimElevation += (delta / 1000) * 1.6;
+      this.pointerAimActive = false;
+    }
+
+    this.keyboardAimElevation = Phaser.Math.Clamp(
+      this.keyboardAimElevation,
+      -1.1,
+      0.45,
+    );
+
+    let targetX: number;
+    let targetY: number;
+
+    if (this.pointerAimActive) {
+      // Mouse/pointer aiming.
+      targetX = pointer.x + camera.scrollX;
+      targetY = pointer.y + camera.scrollY;
+    } else {
+      // Keyboard fallback aiming.
+      const baseAngle = this.isFacingRight ? 0 : Math.PI;
+      const angle = baseAngle + this.keyboardAimElevation;
+      const aimDistance = 320;
+
+      targetX = this.x + Math.cos(angle) * aimDistance;
+      targetY = this.y - 20 + Math.sin(angle) * aimDistance;
+    }
+
+    this.lastPointerX = pointer.x;
+    this.lastPointerY = pointer.y;
 
     // Update bow aiming
     this.bow.updateAiming(this, targetX, targetY, delta);
@@ -424,9 +533,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.canDoubleJump = true;
   }
 
+  setJumpVelocity(velocity: number): void {
+    // Jump velocity should be negative in Phaser Arcade physics.
+    this.jumpVelocity = Math.min(-120, velocity);
+  }
+
   private die(): void {
     this.scene.events.emit("player-died");
-    this.play("rama-die");
+    this.safePlay("rama-die");
     this.setTint(0x888888);
   }
 

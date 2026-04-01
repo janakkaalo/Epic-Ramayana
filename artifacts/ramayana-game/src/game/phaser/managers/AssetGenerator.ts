@@ -5,6 +5,65 @@ import Phaser from "phaser";
  * Generates complete sprite sheets with multiple animation frames
  */
 export class AssetGenerator {
+  private static replaceAnimation(
+    scene: Phaser.Scene,
+    config: Phaser.Types.Animations.Animation,
+  ): void {
+    const key = config.key as string;
+
+    if (scene.anims.exists(key)) {
+      scene.anims.remove(key);
+    }
+    scene.anims.create({ ...config, key });
+  }
+
+  private static defineHorizontalFrames(
+    scene: Phaser.Scene,
+    textureKey: string,
+    frameWidth: number,
+    frameHeight: number,
+    totalFrames: number,
+  ): void {
+    const texture = scene.textures.get(textureKey);
+    if (!texture) return;
+
+    for (let i = 0; i < totalFrames; i++) {
+      const frameName = i.toString();
+      if (!texture.has(frameName)) {
+        texture.add(frameName, 0, i * frameWidth, 0, frameWidth, frameHeight);
+      }
+    }
+  }
+
+  private static frameRange(
+    textureKey: string,
+    start: number,
+    end: number,
+  ): Phaser.Types.Animations.AnimationFrame[] {
+    const frames: Phaser.Types.Animations.AnimationFrame[] = [];
+    for (let i = start; i <= end; i++) {
+      frames.push({ key: textureKey, frame: i.toString() });
+    }
+    return frames;
+  }
+
+  private static generateParticleTexture(
+    scene: Phaser.Scene,
+    key: string,
+    color: number,
+    radius: number = 2,
+    alpha: number = 1,
+  ): void {
+    if (scene.textures.exists(key)) return;
+
+    const size = radius * 2;
+    const graphics = scene.add.graphics();
+    graphics.fillStyle(color, alpha);
+    graphics.fillCircle(radius, radius, radius);
+    graphics.generateTexture(key, size, size);
+    graphics.destroy();
+  }
+
   /**
    * Draw a detailed Rama character (traditional Indian prince style)
    */
@@ -230,74 +289,58 @@ export class AssetGenerator {
     graphics.generateTexture("rama-spritesheet", width, height);
     graphics.destroy();
 
+    this.defineHorizontalFrames(scene, "rama-spritesheet", frameW, frameH, totalFrames);
+
     // Create animations
-    if (!scene.anims.exists("rama-idle")) {
-      scene.anims.create({
-        key: "rama-idle",
-        frames: scene.anims.generateFrameNumbers("rama-spritesheet", {
-          start: 0,
-          end: 3,
-        }),
-        frameRate: 4,
-        repeat: -1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rama-idle",
+      frames: this.frameRange("rama-spritesheet", 0, 3),
+      frameRate: 4,
+      repeat: -1,
+    });
 
     let frameStart = 4;
-    if (!scene.anims.exists("rama-walk")) {
-      scene.anims.create({
-        key: "rama-walk",
-        frames: scene.anims.generateFrameNumbers("rama-spritesheet", {
-          start: frameStart,
-          end: frameStart + 7,
-        }),
-        frameRate: 12,
-        repeat: -1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rama-walk",
+      frames: this.frameRange("rama-spritesheet", frameStart, frameStart + 7),
+      frameRate: 12,
+      repeat: -1,
+    });
 
     frameStart += 8;
-    if (!scene.anims.exists("rama-run")) {
-      scene.anims.create({
-        key: "rama-run",
-        frames: scene.anims.generateFrameNumbers("rama-spritesheet", {
-          start: frameStart,
-          end: frameStart + 7,
-        }),
-        frameRate: 16,
-        repeat: -1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rama-run",
+      frames: this.frameRange("rama-spritesheet", frameStart, frameStart + 7),
+      frameRate: 16,
+      repeat: -1,
+    });
 
     frameStart += 8;
-    if (!scene.anims.exists("rama-jump")) {
-      scene.anims.create({
-        key: "rama-jump",
-        frames: [{ key: "rama-spritesheet", frame: frameStart }],
-        frameRate: 1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rama-jump",
+      frames: [{ key: "rama-spritesheet", frame: frameStart.toString() }],
+      frameRate: 1,
+    });
 
     frameStart += 1;
-    if (!scene.anims.exists("rama-aim")) {
-      scene.anims.create({
-        key: "rama-aim",
-        frames: [{ key: "rama-spritesheet", frame: frameStart }],
-        frameRate: 1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rama-aim",
+      frames: [{ key: "rama-spritesheet", frame: frameStart.toString() }],
+      frameRate: 1,
+    });
 
     frameStart += 1;
-    if (!scene.anims.exists("rama-shoot")) {
-      scene.anims.create({
-        key: "rama-shoot",
-        frames: scene.anims.generateFrameNumbers("rama-spritesheet", {
-          start: frameStart,
-          end: frameStart + 2,
-        }),
-        frameRate: 15,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rama-shoot",
+      frames: this.frameRange("rama-spritesheet", frameStart, frameStart + 2),
+      frameRate: 15,
+    });
+
+    this.replaceAnimation(scene, {
+      key: "rama-die",
+      frames: [{ key: "rama-spritesheet", frame: "0" }],
+      frameRate: 1,
+    });
 
     console.log("Generated Rama animated sprite sheet with all animations");
   }
@@ -335,63 +378,46 @@ export class AssetGenerator {
     graphics.generateTexture("rakshasa-spritesheet", width, height);
     graphics.destroy();
 
+    this.defineHorizontalFrames(
+      scene,
+      "rakshasa-spritesheet",
+      frameW,
+      frameH,
+      totalFrames,
+    );
+
     // Create animations
-    if (!scene.anims.exists("rakshasa-idle")) {
-      scene.anims.create({
-        key: "rakshasa-idle",
-        frames: scene.anims.generateFrameNumbers("rakshasa-spritesheet", {
-          start: 0,
-          end: 3,
-        }),
-        frameRate: 4,
-        repeat: -1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rakshasa-idle",
+      frames: this.frameRange("rakshasa-spritesheet", 0, 3),
+      frameRate: 4,
+      repeat: -1,
+    });
 
-    if (!scene.anims.exists("rakshasa-walk")) {
-      scene.anims.create({
-        key: "rakshasa-walk",
-        frames: scene.anims.generateFrameNumbers("rakshasa-spritesheet", {
-          start: 4,
-          end: 11,
-        }),
-        frameRate: 12,
-        repeat: -1,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rakshasa-walk",
+      frames: this.frameRange("rakshasa-spritesheet", 4, 11),
+      frameRate: 12,
+      repeat: -1,
+    });
 
-    if (!scene.anims.exists("rakshasa-attack")) {
-      scene.anims.create({
-        key: "rakshasa-attack",
-        frames: scene.anims.generateFrameNumbers("rakshasa-spritesheet", {
-          start: 12,
-          end: 17,
-        }),
-        frameRate: 12,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rakshasa-attack",
+      frames: this.frameRange("rakshasa-spritesheet", 12, 17),
+      frameRate: 12,
+    });
 
-    if (!scene.anims.exists("rakshasa-hit")) {
-      scene.anims.create({
-        key: "rakshasa-hit",
-        frames: scene.anims.generateFrameNumbers("rakshasa-spritesheet", {
-          start: 18,
-          end: 19,
-        }),
-        frameRate: 10,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rakshasa-hit",
+      frames: this.frameRange("rakshasa-spritesheet", 18, 19),
+      frameRate: 10,
+    });
 
-    if (!scene.anims.exists("rakshasa-death")) {
-      scene.anims.create({
-        key: "rakshasa-death",
-        frames: scene.anims.generateFrameNumbers("rakshasa-spritesheet", {
-          start: 20,
-          end: 23,
-        }),
-        frameRate: 8,
-      });
-    }
+    this.replaceAnimation(scene, {
+      key: "rakshasa-death",
+      frames: this.frameRange("rakshasa-spritesheet", 20, 23),
+      frameRate: 8,
+    });
 
     console.log("Generated Rakshasa animated sprite sheet with all animations");
   }
@@ -680,6 +706,12 @@ export class AssetGenerator {
     // Backgrounds
     this.generateBackground(scene, "sky-day", 0x87ceeb, 0xe6f2ff);
     this.generateBackground(scene, "sky-forest", 0x556b2f, 0x8fbc8f);
+
+    // Particle textures used across scenes and weapon trails
+    this.generateParticleTexture(scene, "particle", 0xffffff, 2, 1);
+    this.generateParticleTexture(scene, "particle-ff4500", 0xff4500, 2, 1);
+    this.generateParticleTexture(scene, "particle-ffd700", 0xffd700, 2, 1);
+    this.generateParticleTexture(scene, "particle-00bfff", 0x00bfff, 2, 1);
 
     console.log("AssetGenerator: All animated assets generated successfully!");
   }

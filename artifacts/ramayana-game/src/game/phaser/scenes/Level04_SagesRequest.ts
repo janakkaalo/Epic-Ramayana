@@ -37,6 +37,9 @@ export class Level04_SagesRequest extends Phaser.Scene {
   private totalEnemies: number = 0;
   private totalDharmaScore: number = 0;
   private hasStartedJourney: boolean = false;
+  private goalX: number = 0;
+  private levelCompleted: boolean = false;
+  private defeatedEnemies: Set<Enemy> = new Set();
 
   // UI
   private statusText!: Phaser.GameObjects.Text;
@@ -55,6 +58,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
     // Set up camera
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, width * 4, height);
+    this.physics.world.setBounds(0, 0, width * 4, height);
 
     // Initialize systems
     this.dialogueSystem = new DialogueSystem(this);
@@ -83,6 +87,9 @@ export class Level04_SagesRequest extends Phaser.Scene {
         enemy.update(time, delta);
       }
     });
+
+    this.updateArrowEnemyHits();
+    this.checkLevelCompletion();
   }
 
   /**
@@ -173,6 +180,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
    */
   private transitionToForest(): void {
     const { width, height } = this.cameras.main;
+    this.levelPart = "forest";
 
     // Clear platforms and create forest platforms
     this.platforms.clear(true, true);
@@ -180,6 +188,8 @@ export class Level04_SagesRequest extends Phaser.Scene {
 
     // Clear enemies
     this.enemies.clear(true, true);
+    this.defeatedEnemies.clear();
+    this.enemiesDefeated = 0;
 
     // Forest background with layered trees
     const forestColors = [0x1a3a1a, 0x2d5a2d, 0x1a3a1a, 0x0d2d0d];
@@ -210,16 +220,14 @@ export class Level04_SagesRequest extends Phaser.Scene {
     // Start enemy spawning
     this.spawnEnemies();
 
-    this.statusText?.setText("Navigate through the forest to Siddhashrama!");
+    this.statusText?.setText(
+      "Defeat the asuras, then proceed to Siddhashrama!",
+    );
     this.hasStartedJourney = true;
 
     // Set a goal position (far right of forest)
-    const goalX = width * 3 + 500;
-    this.physics.overlap(this.player, [], undefined, () => {
-      if (this.player.x > goalX && this.enemiesDefeated >= this.totalEnemies) {
-        this.completeLevel();
-      }
-    });
+    this.goalX = width * 3 + 500;
+    this.createGoalMarker();
   }
 
   /**
@@ -283,9 +291,11 @@ export class Level04_SagesRequest extends Phaser.Scene {
       const enemy = new Enemy(this, pos.x, pos.y, enemyType);
       this.enemies.add(enemy as any);
 
-      // Make enemy patrol
-      (enemy as any).patrolRange = 200;
-      (enemy as any).patrolSpeed = 60 + index * 20; // Increase difficulty
+      // Make enemy patrol around spawn point
+      enemy.setPatrolPoints([
+        new Phaser.Math.Vector2(pos.x - 100, pos.y),
+        new Phaser.Math.Vector2(pos.x + 100, pos.y),
+      ]);
     });
 
     this.updateEnemyCount();
@@ -295,37 +305,232 @@ export class Level04_SagesRequest extends Phaser.Scene {
    * Setup arrow-enemy collision
    */
   private setupArrowCollisions(): void {
-    this.events.on("arrow-enemy-hit", (arrow: any, enemy: any) => {
-      this.handleEnemyHit(enemy);
+    this.events.on("arrow-shot", () => {
+      const arrows = this.player.getBow().getArrows();
+      const latestArrow = arrows[arrows.length - 1];
+      if (!latestArrow) {
+        return;
+      }
+
+      latestArrow.setData("prevX", latestArrow.x);
+      latestArrow.setData("prevY", latestArrow.y);
+
+      this.physics.add.overlap(
+        latestArrow,
+        this.enemies,
+        (arrowObj, enemyObj) => {
+          const arrow = arrowObj as Phaser.Physics.Arcade.Sprite & {
+            hit?: (target?: Phaser.GameObjects.GameObject) => void;
+          };
+          const enemy = enemyObj as Enemy;
+
+          if (!enemy.active || enemy.getState() === "DEAD") {
+            return;
+          }
+
+          if (arrow.hit) {
+            arrow.hit(enemy);
+          } else {
+            arrow.destroy();
+          }
+        },
+        undefined,
+        this,
+      );
     });
+
+    this.events.on(
+      "arrow-hit",
+      (data: {
+        arrow: Phaser.GameObjects.GameObject;
+        target?: Phaser.GameObjects.GameObject;
+        damage: number;
+      }) => {
+        const enemy = data.target as Enemy | undefined;
+        if (!enemy || !this.enemies.contains(enemy) || !enemy.active) {
+          return;
+        }
+
+        this.handleEnemyHit(enemy, data.damage, data.arrow);
+      },
+      this,
+    );
+
+    this.events.on(
+      "enemy-died",
+      (data: { enemy: Enemy }) => {
+        if (!this.enemies.contains(data.enemy)) {
+          return;
+        }
+
+        if (this.defeatedEnemies.has(data.enemy)) {
+          return;
+        }
+
+        this.defeatedEnemies.add(data.enemy);
+        this.enemiesDefeated = this.defeatedEnemies.size;
+        this.totalDharmaScore += 120;
+        this.updateEnemyCount();
+
+        if (this.enemiesDefeated >= this.totalEnemies) {
+          this.statusText?.setText(
+            "All asuras defeated! Reach Siddhashrama ahead.",
+          );
+        }
+      },
+      this,
+    );
+
+    this.events.on(
+      "enemy-attack",
+      (data: { x: number; y: number; damage: number }) => {
+        const distance = Phaser.Math.Distance.Between(
+          this.player.x,
+          this.player.y,
+          data.x,
+          data.y,
+        );
+
+        if (distance <= 90) {
+          this.player.takeDamage(data.damage);
+        }
+      },
+      this,
+    );
   }
 
   /**
    * Handle enemy hit
    */
-  private handleEnemyHit(enemy: any): void {
-    if (enemy && !enemy.isDead) {
-      // Damage enemy
-      enemy.takeDamage(25);
+  private handleEnemyHit(
+    enemy: Enemy,
+    damage: number,
+    source: Phaser.GameObjects.GameObject,
+  ): void {
+    if (!enemy.active || enemy.getState() === "DEAD") {
+      return;
+    }
 
-      // Award dharma
-      this.totalDharmaScore += 100;
+    const appliedDamage = Math.max(10, Math.floor(damage));
+    enemy.takeDamage(appliedDamage, source);
+    this.totalDharmaScore += Math.max(20, Math.floor(appliedDamage * 0.8));
+  }
 
-      // Check if dead
-      if (enemy.health <= 0) {
-        enemy.isDead = true;
-        enemy.setAlpha(0.5);
-        this.enemiesDefeated++;
-        this.updateEnemyCount();
+  private updateArrowEnemyHits(): void {
+    if (!this.hasStartedJourney || this.enemies.getLength() === 0) {
+      return;
+    }
 
-        // Check if all enemies defeated
-        if (this.enemiesDefeated >= this.totalEnemies) {
-          this.statusText?.setText(
-            "All enemies defeated! Proceed to Siddhashrama!",
-          );
+    const arrows = this.player.getBow().getArrows();
+    if (arrows.length === 0) return;
+
+    for (const arrow of arrows) {
+      if (!arrow.active) continue;
+
+      const prevX = (arrow.getData("prevX") as number | undefined) ?? arrow.x;
+      const prevY = (arrow.getData("prevY") as number | undefined) ?? arrow.y;
+      const currX = arrow.x;
+      const currY = arrow.y;
+
+      for (const enemyObj of this.enemies.getChildren()) {
+        const enemy = enemyObj as Enemy;
+
+        if (!enemy.active || enemy.getState() === "DEAD") {
+          continue;
+        }
+
+        if (
+          this.segmentHitsCircle(
+            prevX,
+            prevY,
+            currX,
+            currY,
+            enemy.x,
+            enemy.y - 10,
+            38,
+          )
+        ) {
+          arrow.hit(enemy);
+          break;
         }
       }
+
+      arrow.setData("prevX", currX);
+      arrow.setData("prevY", currY);
     }
+  }
+
+  private segmentHitsCircle(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    cx: number,
+    cy: number,
+    radius: number,
+  ): boolean {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const segLenSq = dx * dx + dy * dy;
+
+    if (segLenSq === 0) {
+      return Phaser.Math.Distance.Between(x1, y1, cx, cy) <= radius;
+    }
+
+    const t = Phaser.Math.Clamp(
+      ((cx - x1) * dx + (cy - y1) * dy) / segLenSq,
+      0,
+      1,
+    );
+
+    const closestX = x1 + dx * t;
+    const closestY = y1 + dy * t;
+
+    return Phaser.Math.Distance.Between(closestX, closestY, cx, cy) <= radius;
+  }
+
+  private checkLevelCompletion(): void {
+    if (!this.hasStartedJourney || this.levelCompleted) {
+      return;
+    }
+
+    if (this.enemiesDefeated < this.totalEnemies) {
+      return;
+    }
+
+    if (this.player.x >= this.goalX) {
+      this.completeLevel();
+    }
+  }
+
+  private createGoalMarker(): void {
+    const { height } = this.cameras.main;
+    const markerX = this.goalX + 120;
+    const markerY = height - 200;
+
+    const pillar = this.add.rectangle(markerX, markerY + 60, 14, 140, 0x8b5a2b);
+    pillar.setScrollFactor(1);
+
+    const banner = this.add.rectangle(markerX + 48, markerY + 20, 96, 48, 0xe0b04a);
+    banner.setStrokeStyle(3, 0x7f4f24);
+    banner.setScrollFactor(1);
+
+    const label = this.add.text(markerX + 48, markerY + 20, "Siddhashrama", {
+      fontSize: "14px",
+      color: "#2c1b10",
+      fontStyle: "bold",
+    });
+    label.setOrigin(0.5);
+    label.setScrollFactor(1);
+
+    this.tweens.add({
+      targets: [banner, label],
+      y: "+=6",
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
   }
 
   /**
@@ -361,7 +566,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
       .text(
         this.cameras.main.width / 2,
         this.cameras.main.height - 50,
-        "Arrow Keys: Move | SPACE: Aim/Shoot | Defeat enemies and reach the hermitage",
+        "Arrow Keys: Move | Hold SPACE: Aim (Mouse or Up/Down), Release: Shoot",
         {
           fontSize: "16px",
           fontFamily: "Arial",
@@ -388,6 +593,11 @@ export class Level04_SagesRequest extends Phaser.Scene {
    * Complete the level
    */
   private completeLevel(): void {
+    if (this.levelCompleted) {
+      return;
+    }
+    this.levelCompleted = true;
+
     // Stop player
     if (this.player.body) {
       (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
@@ -434,7 +644,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
     );
 
     // Continue option
-    this.input.keyboard?.on("keydown-SPACE", () => {
+    this.input.keyboard?.once("keydown-SPACE", () => {
       this.scene.start("Level05_TatakasTerror");
     });
   }

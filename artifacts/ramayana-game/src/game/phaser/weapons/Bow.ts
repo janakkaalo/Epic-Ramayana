@@ -20,10 +20,16 @@ export class Bow {
   private aimLine?: Phaser.GameObjects.Graphics;
   private aimArc?: Phaser.GameObjects.Graphics;
   private windIndicator?: Phaser.GameObjects.Text;
+  private chargeBarBg?: Phaser.GameObjects.Graphics;
+  private chargeBarFg?: Phaser.GameObjects.Graphics;
+  private chargeBarX: number = 0;
+  private chargeBarY: number = 0;
 
   // Wind effect (adds challenge)
   private windStrength: number = 0;
   private windDirection: number = 0;
+  private windEnabled: boolean = true;
+  private windTimer?: Phaser.Time.TimerEvent;
 
   constructor(scene: Phaser.Scene, owner: Phaser.GameObjects.GameObject) {
     this.scene = scene;
@@ -46,39 +52,52 @@ export class Bow {
     this.aimArc.setVisible(false);
 
     // Enhanced wind indicator with better styling
+    const panelX = this.scene.cameras.main.width - 190;
+    const panelY = 20;
+    this.chargeBarX = panelX;
+    this.chargeBarY = panelY + 32;
+
     this.windIndicator = this.scene.add
-      .text(10, 150, "Wind: None", {
+      .text(panelX, panelY, "Wind: None", {
         fontFamily: "Arial",
-        fontSize: "18px",
+        fontSize: "16px",
         fontStyle: "bold",
         color: "#FFD700",
         backgroundColor: "#000000",
-        padding: { x: 10, y: 7 },
+        padding: { x: 8, y: 6 },
         stroke: "#FFFFFF",
-        strokeThickness: 2,
+        strokeThickness: 1,
       })
       .setScrollFactor(0)
-      .setDepth(101);
+      .setDepth(101)
+      .setVisible(false);
 
     // Charge level indicator bar
-    const chargeBarBg = this.scene.add.graphics();
-    chargeBarBg.fillStyle(0x000000, 0.7);
-    chargeBarBg.fillRect(10, 180, 120, 15);
-    chargeBarBg.setScrollFactor(0);
-    chargeBarBg.setDepth(101);
-    (this as any).chargeBarBg = chargeBarBg;
+    this.chargeBarBg = this.scene.add.graphics();
+    this.chargeBarBg.fillStyle(0x000000, 0.75);
+    this.chargeBarBg.fillRoundedRect(this.chargeBarX, this.chargeBarY, 130, 14, 4);
+    this.chargeBarBg.setScrollFactor(0);
+    this.chargeBarBg.setDepth(101);
+    this.chargeBarBg.setVisible(false);
 
-    const chargeBarFg = this.scene.add.graphics();
-    chargeBarFg.setScrollFactor(0);
-    chargeBarFg.setDepth(102);
-    (this as any).chargeBarFg = chargeBarFg;
+    this.chargeBarFg = this.scene.add.graphics();
+    this.chargeBarFg.setScrollFactor(0);
+    this.chargeBarFg.setDepth(102);
+    this.chargeBarFg.setVisible(false);
   }
 
   private setupWindSystem(): void {
     // Change wind periodically
-    this.scene.time.addEvent({
+    this.windTimer = this.scene.time.addEvent({
       delay: 10000, // Every 10 seconds
       callback: () => {
+        if (!this.windEnabled) {
+          this.windStrength = 0;
+          this.windDirection = 0;
+          this.updateWindIndicator();
+          return;
+        }
+
         this.windStrength = Phaser.Math.Between(0, 3) / 10; // 0 to 0.3
         this.windDirection = Phaser.Math.Between(-1, 1);
         this.updateWindIndicator();
@@ -107,6 +126,17 @@ export class Bow {
     }
   }
 
+  setWindEnabled(enabled: boolean): void {
+    this.windEnabled = enabled;
+
+    if (!enabled) {
+      this.windStrength = 0;
+      this.windDirection = 0;
+    }
+
+    this.updateWindIndicator();
+  }
+
   /**
    * Start aiming the bow
    */
@@ -116,6 +146,10 @@ export class Bow {
 
     this.aimLine?.setVisible(true);
     this.aimArc?.setVisible(true);
+    this.windIndicator?.setVisible(true);
+    this.chargeBarBg?.setVisible(true);
+    this.chargeBarFg?.setVisible(true);
+    this.updateChargeBar();
 
     this.scene.events.emit("bow-aim-start");
   }
@@ -133,6 +167,10 @@ export class Bow {
 
     this.aimLine?.setVisible(false);
     this.aimArc?.setVisible(false);
+    this.windIndicator?.setVisible(false);
+    this.chargeBarBg?.setVisible(false);
+    this.chargeBarFg?.setVisible(false);
+    this.chargeBarFg?.clear();
 
     this.scene.events.emit("bow-aim-stop");
   }
@@ -158,6 +196,24 @@ export class Bow {
 
     // Draw aim indicator
     this.drawAimIndicator(ownerSprite);
+    this.updateChargeBar();
+  }
+
+  private updateChargeBar(): void {
+    if (!this.chargeBarFg) return;
+
+    this.chargeBarFg.clear();
+
+    const fillWidth = Math.max(0, Math.min(126, Math.floor(126 * this.chargeLevel)));
+    const fillColor =
+      this.chargeLevel < 0.5
+        ? 0x66bb6a
+        : this.chargeLevel < 0.8
+          ? 0xffd54f
+          : 0xef5350;
+
+    this.chargeBarFg.fillStyle(fillColor, 0.95);
+    this.chargeBarFg.fillRoundedRect(this.chargeBarX + 2, this.chargeBarY + 2, fillWidth, 10, 3);
   }
 
   private drawAimIndicator(ownerSprite: Phaser.Physics.Arcade.Sprite): void {
@@ -267,13 +323,16 @@ export class Bow {
       finalAngle += this.windDirection * this.windStrength * 0.2;
     }
 
+    // Keep baseline power high enough that non-perfect charges still reach combat targets.
+    const shotPower = Math.max(0.6, this.chargeLevel);
+
     // Create arrow
     const arrow = new Arrow(
       this.scene,
       startX,
       startY,
       finalAngle,
-      this.chargeLevel,
+      shotPower,
       arrowType,
       "player",
       astraId,
@@ -288,7 +347,7 @@ export class Bow {
       x: startX,
       y: startY,
       angle: finalAngle,
-      power: this.chargeLevel,
+      power: shotPower,
       type: arrowType,
     });
   }
@@ -343,9 +402,16 @@ export class Bow {
    * Destroy bow and cleanup
    */
   destroy(): void {
+    if (this.windTimer) {
+      this.windTimer.destroy();
+      this.windTimer = undefined;
+    }
+
     this.aimLine?.destroy();
     this.aimArc?.destroy();
     this.windIndicator?.destroy();
+    this.chargeBarBg?.destroy();
+    this.chargeBarFg?.destroy();
     this.arrows.forEach((arrow) => arrow.destroy());
     this.arrows = [];
   }
