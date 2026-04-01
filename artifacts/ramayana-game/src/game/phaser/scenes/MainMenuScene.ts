@@ -6,6 +6,13 @@ import { getProgressionManager } from "../managers/LevelProgressionManager";
  */
 export class MainMenuScene extends Phaser.Scene {
   private levelSelectOverlay?: Phaser.GameObjects.Container;
+  private levelSelectWheelHandler?: (
+    pointer: Phaser.Input.Pointer,
+    currentlyOver: Phaser.GameObjects.GameObject[],
+    deltaX: number,
+    deltaY: number,
+    deltaZ: number,
+  ) => void;
 
   constructor() {
     super({ key: "MainMenuScene" });
@@ -264,11 +271,25 @@ export class MainMenuScene extends Phaser.Scene {
       .rectangle(0, 0, width, height, 0x000000, 0.72)
       .setOrigin(0)
       .setInteractive();
-    dim.on("pointerdown", () => this.hideLevelSelect());
+    dim.on("pointerdown", () => {
+      // Deliberately do nothing to avoid accidental close while interacting.
+    });
 
     const panel = this.add
       .rectangle(width / 2, height / 2, width * 0.78, height * 0.84, 0x101b10, 0.95)
-      .setStrokeStyle(3, 0xdeb650);
+      .setStrokeStyle(3, 0xdeb650)
+      .setInteractive();
+    panel.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _lx: number,
+        _ly: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+      },
+    );
 
     const title = this.add
       .text(width / 2, 82, "Level Select", {
@@ -287,6 +308,14 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const scrollHint = this.add
+      .text(width / 2, 140, "Use mouse wheel to scroll", {
+        fontFamily: "Arial",
+        fontSize: "14px",
+        color: "#BDBDBD",
+      })
+      .setOrigin(0.5);
+
     const closeButton = this.add
       .text(width / 2 + width * 0.35, 82, "[Close]", {
         fontFamily: "Arial",
@@ -302,22 +331,35 @@ export class MainMenuScene extends Phaser.Scene {
       panel,
       title,
       subtitle,
+      scrollHint,
       closeButton,
     ];
 
-    let y = 160;
+    const viewportX = width / 2 - width * 0.34;
+    const viewportY = 172;
+    const viewportWidth = width * 0.68;
+    const viewportHeight = height * 0.62;
+
+    const maskGraphics = this.add.graphics();
+    maskGraphics.fillStyle(0xffffff, 1);
+    maskGraphics.fillRect(viewportX, viewportY, viewportWidth, viewportHeight);
+    maskGraphics.setVisible(false);
+
+    const listContainer = this.add.container(viewportX, viewportY);
+
+    let y = 0;
     let currentKanda = "";
 
     for (const level of levels) {
       if (level.kanda !== currentKanda) {
         currentKanda = level.kanda;
-        const kandaHeader = this.add.text(width / 2 - width * 0.34, y, `${currentKanda} Kanda`, {
+        const kandaHeader = this.add.text(0, y, `${currentKanda} Kanda`, {
           fontFamily: "serif",
           fontSize: "24px",
           color: "#FFD700",
           fontStyle: "bold",
         });
-        overlayChildren.push(kandaHeader);
+        listContainer.add(kandaHeader);
         y += 34;
       }
 
@@ -338,7 +380,7 @@ export class MainMenuScene extends Phaser.Scene {
 
       const levelLine = this.add
         .text(
-          width / 2 - width * 0.34,
+          0,
           y,
           `${level.order}. ${level.name}${suffix}`,
           {
@@ -359,15 +401,49 @@ export class MainMenuScene extends Phaser.Scene {
         });
       }
 
-      overlayChildren.push(levelLine);
+      listContainer.add(levelLine);
       y += 30;
     }
+
+    const contentHeight = y;
+    const minScrollOffset = Math.min(0, viewportHeight - contentHeight - 8);
+    let scrollOffset = 0;
+
+    listContainer.setMask(maskGraphics.createGeometryMask());
+
+    this.levelSelectWheelHandler = (pointer, _currentlyOver, _dx, deltaY) => {
+      if (!this.levelSelectOverlay) {
+        return;
+      }
+
+      const insideViewport =
+        pointer.x >= viewportX &&
+        pointer.x <= viewportX + viewportWidth &&
+        pointer.y >= viewportY &&
+        pointer.y <= viewportY + viewportHeight;
+
+      if (!insideViewport || minScrollOffset === 0) {
+        return;
+      }
+
+      scrollOffset = Phaser.Math.Clamp(scrollOffset - deltaY * 0.45, minScrollOffset, 0);
+      listContainer.y = viewportY + scrollOffset;
+    };
+
+    this.input.on("wheel", this.levelSelectWheelHandler);
+
+    overlayChildren.push(maskGraphics, listContainer);
 
     this.levelSelectOverlay = this.add.container(0, 0, overlayChildren);
     this.levelSelectOverlay.setDepth(2000);
   }
 
   private hideLevelSelect(): void {
+    if (this.levelSelectWheelHandler) {
+      this.input.off("wheel", this.levelSelectWheelHandler);
+      this.levelSelectWheelHandler = undefined;
+    }
+
     if (!this.levelSelectOverlay) {
       return;
     }

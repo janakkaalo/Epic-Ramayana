@@ -24,6 +24,7 @@ export class LevelProgressionManager {
   constructor() {
     this.initializeLevels();
     this.restoreFromStorage();
+    this.normalizeProgressionIntegrity();
   }
 
   /**
@@ -221,6 +222,7 @@ export class LevelProgressionManager {
       }
     }
 
+    this.normalizeProgressionIntegrity();
     this.persistToStorage();
   }
 
@@ -298,6 +300,7 @@ export class LevelProgressionManager {
     this.totalDharmaScore = 0;
     this.unlockedAstras.clear();
     this.initializeLevels();
+    this.normalizeProgressionIntegrity();
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(this.storageKey);
@@ -356,7 +359,38 @@ export class LevelProgressionManager {
       this.unlockedAstras = new Set(data.unlockedAstras);
     }
 
+    this.normalizeProgressionIntegrity();
     this.persistToStorage();
+  }
+
+  private normalizeProgressionIntegrity(): void {
+    const levels = this.getAllLevels();
+    if (levels.length === 0) {
+      return;
+    }
+
+    let highestReachedOrder = 1;
+
+    for (const level of levels) {
+      if (level.completed || level.unlocked || this.currentLevel === level.key) {
+        highestReachedOrder = Math.max(highestReachedOrder, level.order);
+      }
+
+      if (level.completed) {
+        level.unlocked = true;
+      }
+    }
+
+    for (const level of levels) {
+      if (level.order <= highestReachedOrder) {
+        level.unlocked = true;
+      }
+    }
+
+    const firstLevel = levels.find((level) => level.order === 1);
+    if (firstLevel) {
+      firstLevel.unlocked = true;
+    }
   }
 
   private persistToStorage(): void {
