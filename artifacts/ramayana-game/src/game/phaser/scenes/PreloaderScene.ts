@@ -43,24 +43,35 @@ export class PreloaderScene extends Phaser.Scene {
   create(): void {
     console.log("PreloaderScene: All assets loaded");
 
-    // Show a "Press to Start" message
+    // Show a "Press to Start" message (tap/click works too — no mobile soft-lock)
     const startText = this.add
       .text(
         this.cameras.main.width / 2,
         this.cameras.main.height / 2 + 100,
-        "Press SPACE to Start",
+        "Press SPACE / Tap to Start",
         {
           fontFamily: "Arial",
           fontSize: "24px",
           color: "#ffffff",
         },
       )
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    let started = false;
+    const go = () => {
+      if (started) return;
+      started = true;
+      this.scene.start("MainMenuScene");
+    };
+    // Auto-advance shortly so the game never idles on this screen.
+    this.time.delayedCall(2500, go);
 
     // Start game on space press
-    this.input.keyboard?.once("keydown-SPACE", () => {
-      this.scene.start("MainMenuScene");
-    });
+    this.input.keyboard?.once("keydown-SPACE", go);
+    this.input.keyboard?.once("keydown-ENTER", go);
+    startText.on("pointerdown", go);
+    this.input.once("pointerdown", go);
   }
 
   private createLoadingUI(): void {

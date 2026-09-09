@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { getGameSettings } from "../managers/GameSettings";
 
 /**
  * Dialogue Entry - represents a single dialogue message
@@ -51,7 +52,13 @@ export class DialogueSystem {
   private readonly BOX_HEIGHT = 180;
   private readonly BOX_Y = 520;
   private readonly PORTRAIT_SIZE = 120;
-  private readonly TEXT_SPEED = 30; // milliseconds per character
+  private get textSpeedMs(): number {
+    try {
+      return getGameSettings().getTextDelayMs();
+    } catch {
+      return 30;
+    }
+  }
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -325,9 +332,9 @@ export class DialogueSystem {
       this.textRevealTimer.destroy();
     }
 
-    // Typewriter effect
+    // Typewriter effect (speed follows Settings → Text Speed)
     this.textRevealTimer = this.scene.time.addEvent({
-      delay: this.TEXT_SPEED,
+      delay: this.textSpeedMs,
       callback: () => {
         if (currentIndex < fullText.length) {
           currentIndex++;

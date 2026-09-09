@@ -3,6 +3,10 @@ import {
   DialogueSystem,
   BALA_KANDA_DIALOGUES,
 } from "../systems/DialogueSystem";
+import { PauseMenu } from "../systems/PauseMenu";
+import { LevelFlow } from "../utils/LevelFlow";
+import { getGameSettings } from "../managers/GameSettings";
+import { getProgressionManager } from "../managers/LevelProgressionManager";
 
 /**
  * Level 1: "The Question of Perfection"
@@ -12,6 +16,7 @@ import {
  */
 export class Level01_ValmikiAshram extends Phaser.Scene {
   private dialogueSystem!: DialogueSystem;
+  private pauseMenu!: PauseMenu;
   private hasCompletedIntro: boolean = false;
 
   constructor() {
@@ -19,6 +24,8 @@ export class Level01_ValmikiAshram extends Phaser.Scene {
   }
 
   create(): void {
+    LevelFlow.markLevelStarted("Level01_ValmikiAshram");
+    getGameSettings().applyBrightnessOverlay(this);
     const { width, height } = this.cameras.main;
 
     // Create beautiful serene ashram scene
@@ -27,11 +34,17 @@ export class Level01_ValmikiAshram extends Phaser.Scene {
 
     // Initialize dialogue system
     this.dialogueSystem = new DialogueSystem(this);
+    this.pauseMenu = new PauseMenu(this, {
+      levelKey: "Level01_ValmikiAshram",
+      levelName: "Level 01 — The Question of Perfection",
+    });
 
     // Listen for dialogue completion
     this.events.on("dialogue-end", (id: string) => {
       if (id === "level_1_intro") {
         this.hasCompletedIntro = true;
+        // Persist mission completion so Continue/Level Select unlock L02.
+        getProgressionManager().completeLevel("Level01_ValmikiAshram", 100);
         this.showContinuePrompt();
       }
     });
@@ -456,6 +469,7 @@ export class Level01_ValmikiAshram extends Phaser.Scene {
   }
 
   update(): void {
+    if (this.pauseMenu?.isPausedState()) return;
     // Level is primarily cinematic, no gameplay update needed
   }
 }

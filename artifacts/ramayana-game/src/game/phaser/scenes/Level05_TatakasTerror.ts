@@ -2,6 +2,9 @@ import Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { AstraUI } from "../systems/AstraUI";
+import { PauseMenu } from "../systems/PauseMenu";
+import { LevelFlow } from "../utils/LevelFlow";
+import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
 
 export type TatakaBossPhase = 1 | 2 | 3;
@@ -21,6 +24,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
   private dialogueSystem!: DialogueSystem;
   private astraUI!: AstraUI;
+  private pauseMenu!: PauseMenu;
 
   // Boss state
   private tatakaBoss!: Phaser.Physics.Arcade.Sprite;
@@ -44,6 +48,8 @@ export class Level05_TatakasTerror extends Phaser.Scene {
   }
 
   create(): void {
+    LevelFlow.markLevelStarted("Level05_TatakasTerror");
+    getGameSettings().applyBrightnessOverlay(this);
     const { width, height } = this.cameras.main;
 
     // Create dark forest background
@@ -62,6 +68,10 @@ export class Level05_TatakasTerror extends Phaser.Scene {
     // Initialize systems
     this.dialogueSystem = new DialogueSystem(this);
     this.astraUI = new AstraUI(this);
+    this.pauseMenu = new PauseMenu(this, {
+      levelKey: "Level05_TatakasTerror",
+      levelName: "Level 05 — Tataka's Terror",
+    });
 
     // Create Tataka boss
     this.createTatakaBoss();
@@ -81,6 +91,11 @@ export class Level05_TatakasTerror extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (this.pauseMenu?.isPausedState()) return;
+    if (this.dialogueSystem?.isDialogueActive()) {
+      this.player.setVelocityX(0);
+      return;
+    }
     this.player.update(time, delta);
 
     if (this.battleComplete || !this.tatakaBoss || !this.tatakaBoss.active) {
@@ -618,7 +633,7 @@ export class Level05_TatakasTerror extends Phaser.Scene {
       .text(
         width / 2,
         height / 2 + 100,
-        "Victory! Returning to Main Menu...",
+        "Victory! Press SPACE / Tap to continue to Level 6...",
         {
           fontSize: "22px",
           fontFamily: "Arial",
@@ -631,10 +646,18 @@ export class Level05_TatakasTerror extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1000);
 
-    // Return automatically after the completion message has been visible.
-    this.time.delayedCall(3200, () => {
-      this.scene.start("MainMenuScene");
-    });
+    // Continue the journey into Level 6 (Guardian of the Yajna).
+    let advanced = false;
+    const advance = () => {
+      if (advanced) return;
+      advanced = true;
+      this.scene.start("Level06_GuardianOfYajna");
+    };
+    this.input.keyboard?.once("keydown-SPACE", advance);
+    this.input.keyboard?.once("keydown-ENTER", advance);
+    this.input.once("pointerdown", advance);
+    // Fallback auto-advance for unattended screens.
+    this.time.delayedCall(8000, advance);
   }
 
   /**

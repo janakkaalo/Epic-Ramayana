@@ -6,6 +6,9 @@ import {
   BALA_KANDA_DIALOGUES,
 } from "../systems/DialogueSystem";
 import { AstraUI } from "../systems/AstraUI";
+import { PauseMenu } from "../systems/PauseMenu";
+import { LevelFlow } from "../utils/LevelFlow";
+import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
 
 /**
@@ -30,6 +33,7 @@ export class Level04_SagesRequest extends Phaser.Scene {
   private enemies!: Phaser.Physics.Arcade.Group;
   private dialogueSystem!: DialogueSystem;
   private astraUI!: AstraUI;
+  private pauseMenu!: PauseMenu;
   private levelPart: "throne-room" | "forest" = "throne-room";
 
   // Game state
@@ -50,6 +54,8 @@ export class Level04_SagesRequest extends Phaser.Scene {
   }
 
   create(): void {
+    LevelFlow.markLevelStarted("Level04_SagesRequest");
+    getGameSettings().applyBrightnessOverlay(this);
     const { width, height } = this.cameras.main;
 
     // Start in throne room
@@ -63,6 +69,10 @@ export class Level04_SagesRequest extends Phaser.Scene {
     // Initialize systems
     this.dialogueSystem = new DialogueSystem(this);
     this.astraUI = new AstraUI(this);
+    this.pauseMenu = new PauseMenu(this, {
+      levelKey: "Level04_SagesRequest",
+      levelName: "Level 04 — Sage's Request",
+    });
 
     // Create HUD
     this.createHUD();
@@ -80,6 +90,11 @@ export class Level04_SagesRequest extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (this.pauseMenu?.isPausedState()) return;
+    if (this.dialogueSystem?.isDialogueActive()) {
+      this.player.setVelocityX(0);
+      return;
+    }
     this.player.update(time, delta);
 
     // Update enemies

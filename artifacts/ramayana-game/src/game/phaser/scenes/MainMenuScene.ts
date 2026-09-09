@@ -76,15 +76,23 @@ export class MainMenuScene extends Phaser.Scene {
     // Menu options
     const menuY = height / 2 + 30;
     const menuSpacing = 60;
+    const progressionManager = getProgressionManager();
+    const hasSave = progressionManager.hasSave();
 
-    // Story Mode - Start from Level 1
+    // Story Mode - Start from Level 1 (confirm overwrite when a save exists)
     this.createMenuItem(
-      "Story Mode",
+      hasSave ? "Story Mode (New Game)" : "Story Mode",
       menuY,
       () => {
-        const progressionManager = getProgressionManager();
-        progressionManager.clearProgress();
-        this.scene.start("Level01_ValmikiAshram");
+        if (hasSave) {
+          this.confirmNewGame(() => {
+            progressionManager.clearProgress();
+            this.scene.start("Level01_ValmikiAshram");
+          });
+        } else {
+          progressionManager.clearProgress();
+          this.scene.start("Level01_ValmikiAshram");
+        }
       },
       true,
     );
@@ -99,12 +107,15 @@ export class MainMenuScene extends Phaser.Scene {
       false,
     );
 
+    const continueLevel = progressionManager.getContinueLevelKey();
+    const continueInfo = progressionManager.getLevel(continueLevel);
+    const progress = progressionManager.getProgressionPercentage();
     this.createMenuItem(
-      "Continue",
+      hasSave
+        ? `Continue — L${continueInfo?.order ?? "?"} ${continueInfo?.name ?? ""} (${progress}%)`
+        : "Continue (No Save Yet)",
       menuY + menuSpacing * 2,
       () => {
-        const progressionManager = getProgressionManager();
-        const continueLevel = progressionManager.getContinueLevelKey();
         this.scene.start(continueLevel);
       },
       false,
@@ -123,7 +134,12 @@ export class MainMenuScene extends Phaser.Scene {
       "Settings",
       menuY + menuSpacing * 4,
       () => {
-        console.log("Settings (Coming Soon)");
+        try {
+          this.registry.set("settingsReturnKey", "MainMenuScene");
+        } catch {
+          // ignore
+        }
+        this.scene.start("SettingsScene");
       },
       false,
     );
@@ -249,6 +265,59 @@ export class MainMenuScene extends Phaser.Scene {
     menuItem.on("pointerdown", callback);
   }
 
+  private confirmNewGame(onConfirm: () => void): void {
+    const { width, height } = this.cameras.main;
+    const overlay = this.add.container(0, 0).setDepth(3000);
+    const dim = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0.65)
+      .setOrigin(0)
+      .setInteractive();
+    const box = this.add
+      .rectangle(width / 2, height / 2, 560, 230, 0x101b10, 0.98)
+      .setStrokeStyle(3, 0xdeb650);
+    const msg = this.add
+      .text(
+        width / 2,
+        height / 2 - 45,
+        "Start a new game?\nThis erases your saved progress.",
+        {
+          fontFamily: "Arial",
+          fontSize: "20px",
+          color: "#FFFFFF",
+          align: "center",
+          lineSpacing: 8,
+        },
+      )
+      .setOrigin(0.5);
+    const yes = this.add
+      .text(width / 2 - 120, height / 2 + 60, "New Game", {
+        fontFamily: "Arial",
+        fontSize: "24px",
+        color: "#FFD700",
+        fontStyle: "bold",
+        backgroundColor: "#00000088",
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    yes.on("pointerdown", () => {
+      overlay.destroy(true);
+      onConfirm();
+    });
+    const no = this.add
+      .text(width / 2 + 120, height / 2 + 60, "Cancel", {
+        fontFamily: "Arial",
+        fontSize: "24px",
+        color: "#FFFFFF",
+        backgroundColor: "#00000088",
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    no.on("pointerdown", () => overlay.destroy(true));
+    overlay.add([dim, box, msg, yes, no]);
+  }
+
   private showLevelSelect(): void {
     if (this.levelSelectOverlay) {
       this.levelSelectOverlay.setVisible(true);
@@ -265,6 +334,17 @@ export class MainMenuScene extends Phaser.Scene {
       "Level03_BrothersTraining",
       "Level04_SagesRequest",
       "Level05_TatakasTerror",
+      "Level06_GuardianOfYajna",
+      "Level07_JourneyToMithila",
+      "Level08_DivineBow",
+      "Level09_RamaRajyabhisheka",
+      "Level10_PoisonedMind",
+      "Level11_TwoBoons",
+      "Level12_FarewellToAyodhya",
+      "Level13_CharioteersTrick",
+      "Level14_CrossingToChitrakuta",
+      "Level15_BharatasArrival",
+      "TestLevelScene",
     ]);
 
     const dim = this.add
@@ -301,7 +381,7 @@ export class MainMenuScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const subtitle = this.add
-      .text(width / 2, 118, "Select an unlocked level. Later Kandas are coming soon.", {
+      .text(width / 2, 118, "Jump to ANY mission — locked levels unlock when you jump in.", {
         fontFamily: "Arial",
         fontSize: "16px",
         color: "#DDDDDD",
@@ -309,12 +389,29 @@ export class MainMenuScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const scrollHint = this.add
-      .text(width / 2, 140, "Use mouse wheel to scroll", {
+      .text(width / 2, 140, "Use mouse wheel to scroll  •  ✓ completed  •  🔒 tap to jump in", {
         fontFamily: "Arial",
         fontSize: "14px",
         color: "#BDBDBD",
       })
       .setOrigin(0.5);
+
+    const unlockAllButton = this.add
+      .text(width / 2 - width * 0.35, 82, "[Unlock All]", {
+        fontFamily: "Arial",
+        fontSize: "18px",
+        color: "#FFD700",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    unlockAllButton.on("pointerover", () => unlockAllButton.setScale(1.08));
+    unlockAllButton.on("pointerout", () => unlockAllButton.setScale(1));
+    unlockAllButton.on("pointerdown", () => {
+      progressionManager.unlockAllLevels();
+      // Refresh the list so lock states update immediately.
+      this.hideLevelSelect();
+      this.showLevelSelect();
+    });
 
     const closeButton = this.add
       .text(width / 2 + width * 0.35, 82, "[Close]", {
@@ -333,6 +430,7 @@ export class MainMenuScene extends Phaser.Scene {
       subtitle,
       scrollHint,
       closeButton,
+      unlockAllButton,
     ];
 
     const viewportX = width / 2 - width * 0.34;
@@ -365,16 +463,23 @@ export class MainMenuScene extends Phaser.Scene {
 
       const implemented = playableLevels.has(level.key);
       const unlocked = level.unlocked;
+      const completed = level.completed;
 
+      let prefix = "";
       let suffix = "";
       let color = "#9E9E9E";
       if (!implemented) {
         suffix = " - Coming Soon";
         color = "#7A7A7A";
+      } else if (completed) {
+        prefix = "✓ ";
+        color = "#A5D6A7";
       } else if (!unlocked) {
-        suffix = " - Locked";
-        color = "#8F8F8F";
+        prefix = "🔒 ";
+        suffix = " — tap to jump in";
+        color = "#FFCC80";
       } else {
+        prefix = "▶ ";
         color = "#FFFFFF";
       }
 
@@ -382,7 +487,7 @@ export class MainMenuScene extends Phaser.Scene {
         .text(
           0,
           y,
-          `${level.order}. ${level.name}${suffix}`,
+          `${prefix}${level.order}. ${level.name}${suffix}`,
           {
             fontFamily: "Arial",
             fontSize: "20px",
@@ -391,11 +496,14 @@ export class MainMenuScene extends Phaser.Scene {
         )
         .setOrigin(0, 0);
 
-      if (implemented && unlocked) {
-        levelLine.setInteractive();
+      if (implemented) {
+        const baseColor = color;
+        levelLine.setInteractive({ useHandCursor: true });
         levelLine.on("pointerover", () => levelLine.setColor("#FFD700"));
-        levelLine.on("pointerout", () => levelLine.setColor("#FFFFFF"));
+        levelLine.on("pointerout", () => levelLine.setColor(baseColor));
         levelLine.on("pointerdown", () => {
+          // Free mission jump: unlock the path up to this level, then start it.
+          progressionManager.touchLevel(level.key);
           this.hideLevelSelect();
           this.scene.start(level.key);
         });

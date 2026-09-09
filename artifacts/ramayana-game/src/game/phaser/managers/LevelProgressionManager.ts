@@ -268,9 +268,23 @@ export class LevelProgressionManager {
 
   /**
    * Get best level to continue from.
+   * Prefers the last played level (persistent resume point), then the
+   * first unlocked incomplete level.
    */
   getContinueLevelKey(): string {
     const allLevels = this.getAllLevels();
+
+    // Persistent resume: return to where the player actually was.
+    if (this.currentLevel && this.getLevel(this.currentLevel)) {
+      const current = this.getLevel(this.currentLevel)!;
+      if (!current.completed) {
+        return current.key;
+      }
+      const nextAfterCurrent = this.getNextLevel(this.currentLevel);
+      if (nextAfterCurrent && this.isLevelUnlocked(nextAfterCurrent)) {
+        return nextAfterCurrent;
+      }
+    }
 
     const firstUnlockedIncomplete = allLevels.find(
       (level) => level.unlocked && !level.completed,
@@ -289,6 +303,50 @@ export class LevelProgressionManager {
     }
 
     return "Level01_ValmikiAshram";
+  }
+
+  /**
+   * Record that the player entered a level (without completing it).
+   * Unlocks the level if needed and persists the resume point.
+   */
+  touchLevel(levelKey: string): void {
+    const level = this.getLevel(levelKey);
+    if (!level) return;
+    if (!level.unlocked) {
+      level.unlocked = true;
+    }
+    this.currentLevel = levelKey;
+    this.normalizeProgressionIntegrity();
+    this.persistToStorage();
+  }
+
+  /**
+   * Unlock every level (free mission jump from the main menu).
+   * Completion state and dharma are preserved.
+   */
+  unlockAllLevels(): void {
+    for (const level of this.levels.values()) {
+      level.unlocked = true;
+    }
+    this.normalizeProgressionIntegrity();
+    this.persistToStorage();
+  }
+
+  /**
+   * Whether any saved progress exists (completed or in-progress level).
+   */
+  hasSave(): boolean {
+    if (this.currentLevel) return true;
+    return Array.from(this.levels.values()).some(
+      (l) => l.completed || (l.unlocked && l.order > 1),
+    );
+  }
+
+  /**
+   * Last played level key (resume point), if any.
+   */
+  getLastPlayedLevelKey(): string | null {
+    return this.currentLevel;
   }
 
   /**

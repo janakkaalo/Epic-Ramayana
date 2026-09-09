@@ -1,30 +1,71 @@
 import Phaser from "phaser";
 
 /**
- * PauseMenu - Reusable pause menu system
- * Press ESC to pause any level and return to main menu
+ * PauseMenu - Reusable pause menu.
+ * - ESC / P / BACKSPACE toggles pause (Back button on mobile/keyboard = ESC).
+ * - On-screen pause button (top-right) for touch users.
+ * - Options: Resume, Restart Level, Settings, Main Menu (Home), Exit Game.
+ * - Settings returns to the calling scene via registry key.
  */
 export class PauseMenu {
   private scene: Phaser.Scene;
   private isPaused: boolean = false;
   private pauseContainer?: Phaser.GameObjects.Container;
-  private escapeKey?: Phaser.Input.Keyboard.Key;
+  private keys: Phaser.Input.Keyboard.Key[] = [];
+  private pauseButton?: Phaser.GameObjects.Text;
+  private levelKey: string;
+  private levelName: string;
+  private confirmContainer?: Phaser.GameObjects.Container;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(
+    scene: Phaser.Scene,
+    opts: { levelKey?: string; levelName?: string } = {},
+  ) {
     this.scene = scene;
-    this.setupEscapeKey();
+    this.levelKey = opts.levelKey ?? scene.scene.key;
+    this.levelName = opts.levelName ?? scene.scene.key;
+    this.setupKeys();
+    this.createPauseButton();
+    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
   }
 
-  private setupEscapeKey(): void {
-    if (!this.scene.input.keyboard) return;
-
-    this.escapeKey = this.scene.input.keyboard.addKey(
+  private setupKeys(): void {
+    const kb = this.scene.input.keyboard;
+    if (!kb) return;
+    const codes = [
       Phaser.Input.Keyboard.KeyCodes.ESC,
-    );
+      Phaser.Input.Keyboard.KeyCodes.P,
+      Phaser.Input.Keyboard.KeyCodes.BACKSPACE,
+    ];
+    for (const code of codes) {
+      const key = kb.addKey(code);
+      key.on("down", () => {
+        // Ignore pause toggle while a confirm dialog is open (ESC closes it).
+        if (this.confirmContainer) {
+          this.closeConfirm();
+          return;
+        }
+        this.togglePause();
+      });
+      this.keys.push(key);
+    }
+  }
 
-    this.escapeKey.on("down", () => {
-      this.togglePause();
-    });
+  private createPauseButton(): void {
+    const { width } = this.scene.cameras.main;
+    this.pauseButton = this.scene.add
+      .text(width - 52, 52, "⏸", {
+        fontFamily: "Arial",
+        fontSize: "30px",
+        color: "#FFD700",
+        backgroundColor: "#000000aa",
+        padding: { x: 10, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(9500)
+      .setInteractive({ useHandCursor: true });
+    this.pauseButton.on("pointerdown", () => this.pause());
   }
 
   togglePause(): void {
@@ -37,98 +78,179 @@ export class PauseMenu {
 
   pause(): void {
     if (this.isPaused) return;
-
     this.isPaused = true;
-    this.scene.physics.pause();
+    try {
+      this.scene.physics.pause();
+    } catch {
+      // scenes without physics
+    }
+    try {
+      this.scene.tweens.pauseAll();
+    } catch {
+      // ignore
+    }
     this.createPauseUI();
   }
 
   resume(): void {
     if (!this.isPaused) return;
-
     this.isPaused = false;
-    this.scene.physics.resume();
+    this.closeConfirm();
     this.destroyPauseUI();
+    try {
+      this.scene.physics.resume();
+    } catch {
+      // ignore
+    }
+    try {
+      this.scene.tweens.resumeAll();
+    } catch {
+      // ignore
+    }
   }
 
   private createPauseUI(): void {
     const { width, height } = this.scene.cameras.main;
 
-    // Create container
     this.pauseContainer = this.scene.add.container(0, 0);
     this.pauseContainer.setScrollFactor(0);
     this.pauseContainer.setDepth(10000);
 
-    // Semi-transparent overlay
     const overlay = this.scene.add
-      .rectangle(0, 0, width, height, 0x000000, 0.7)
+      .rectangle(0, 0, width, height, 0x000000, 0.72)
       .setOrigin(0);
     this.pauseContainer.add(overlay);
 
-    // Pause title
     const title = this.scene.add
-      .text(width / 2, height / 3, "PAUSED", {
-        fontFamily: "Arial",
-        fontSize: "64px",
+      .text(width / 2, 120, "⏸ PAUSED", {
+        fontFamily: "serif",
+        fontSize: "56px",
         color: "#FFD700",
         fontStyle: "bold",
         stroke: "#8B4513",
-        strokeThickness: 6,
+        strokeThickness: 5,
       })
       .setOrigin(0.5);
     this.pauseContainer.add(title);
 
-    // Menu options
-    const menuY = height / 2;
-    const menuSpacing = 60;
-
-    // Resume
-    const resumeButton = this.createButton(
-      width / 2,
-      menuY,
-      "Resume",
-      () => {
-        this.resume();
-      },
-      true,
-    );
-    this.pauseContainer.add(resumeButton);
-
-    // Restart Level
-    const restartButton = this.createButton(
-      width / 2,
-      menuY + menuSpacing,
-      "Restart Level",
-      () => {
-        this.resume();
-        this.scene.scene.restart();
-      },
-      false,
-    );
-    this.pauseContainer.add(restartButton);
-
-    // Main Menu
-    const mainMenuButton = this.createButton(
-      width / 2,
-      menuY + menuSpacing * 2,
-      "Main Menu",
-      () => {
-        this.resume();
-        this.scene.scene.start("MainMenuScene");
-      },
-      false,
-    );
-    this.pauseContainer.add(mainMenuButton);
-
-    // Instructions
-    const instructions = this.scene.add
-      .text(width / 2, height - 50, "Press ESC to Resume", {
+    const levelLabel = this.scene.add
+      .text(width / 2, 172, this.levelName, {
         fontFamily: "Arial",
         fontSize: "18px",
+        color: "#FFE9A8",
+        fontStyle: "italic",
+      })
+      .setOrigin(0.5);
+    this.pauseContainer.add(levelLabel);
+
+    const menuY = 250;
+    const spacing = 58;
+
+    const items: Array<{ label: string; primary?: boolean; fn: () => void }> = [
+      { label: "▶  Resume", primary: true, fn: () => this.resume() },
+      {
+        label: "↻  Restart Level",
+        fn: () => {
+          const paused = this.isPaused;
+          if (paused) this.resume();
+          this.scene.scene.restart();
+        },
+      },
+      {
+        label: "⚙  Settings",
+        fn: () => {
+          this.resume();
+          try {
+            this.scene.registry.set("settingsReturnKey", this.scene.scene.key);
+          } catch {
+            // ignore
+          }
+          this.scene.scene.start("SettingsScene");
+        },
+      },
+      {
+        label: "⌂  Main Menu (Home)",
+        fn: () => {
+          this.resume();
+          this.scene.scene.start("MainMenuScene");
+        },
+      },
+      {
+        label: "✕  Exit Game",
+        fn: () => this.showExitConfirm(),
+      },
+    ];
+
+    items.forEach((item, i) => {
+      const btn = this.createButton(
+        width / 2,
+        menuY + i * spacing,
+        item.label,
+        item.fn,
+        item.primary ?? false,
+      );
+      this.pauseContainer?.add(btn);
+    });
+
+    const instructions = this.scene.add
+      .text(width / 2, height - 44, "ESC / P / Backspace: Resume  |  Progress auto-saves", {
+        fontFamily: "Arial",
+        fontSize: "16px",
         color: "#CCCCCC",
       })
       .setOrigin(0.5);
     this.pauseContainer.add(instructions);
+  }
+
+  private showExitConfirm(): void {
+    if (this.confirmContainer || !this.pauseContainer) return;
+    const { width, height } = this.scene.cameras.main;
+
+    this.confirmContainer = this.scene.add.container(0, 0);
+    this.confirmContainer.setDepth(10001);
+
+    const dim = this.scene.add
+      .rectangle(0, 0, width, height, 0x000000, 0.6)
+      .setOrigin(0)
+      .setInteractive();
+    this.confirmContainer.add(dim);
+
+    const box = this.scene.add
+      .rectangle(width / 2, height / 2, 520, 220, 0x101b10, 0.98)
+      .setStrokeStyle(3, 0xdeb650);
+    this.confirmContainer.add(box);
+
+    const msg = this.scene.add
+      .text(
+        width / 2,
+        height / 2 - 50,
+        "Exit to Main Menu?\nYour progress is auto-saved.",
+        {
+          fontFamily: "Arial",
+          fontSize: "20px",
+          color: "#FFFFFF",
+          align: "center",
+          lineSpacing: 8,
+        },
+      )
+      .setOrigin(0.5);
+    this.confirmContainer.add(msg);
+
+    const yes = this.createButton(width / 2 - 110, height / 2 + 55, "Yes, Exit", () => {
+      this.resume();
+      this.scene.scene.start("MainMenuScene");
+    });
+    const no = this.createButton(width / 2 + 110, height / 2 + 55, "Cancel", () => {
+      this.closeConfirm();
+    }, true);
+    this.confirmContainer.add([yes, no]);
+  }
+
+  private closeConfirm(): void {
+    if (this.confirmContainer) {
+      this.confirmContainer.destroy(true);
+      this.confirmContainer = undefined;
+    }
   }
 
   private createButton(
@@ -141,17 +263,18 @@ export class PauseMenu {
     const button = this.scene.add
       .text(x, y, text, {
         fontFamily: "Arial",
-        fontSize: isPrimary ? "36px" : "32px",
+        fontSize: isPrimary ? "30px" : "26px",
         color: isPrimary ? "#FFD700" : "#FFFFFF",
         fontStyle: isPrimary ? "bold" : "normal",
+        backgroundColor: "#00000066",
+        padding: { x: 16, y: 8 },
       })
       .setOrigin(0.5)
-      .setInteractive();
+      .setInteractive({ useHandCursor: true });
 
-    // Hover effects
     button.on("pointerover", () => {
       button.setColor("#FFD700");
-      button.setScale(1.1);
+      button.setScale(1.06);
     });
 
     button.on("pointerout", () => {
@@ -166,7 +289,7 @@ export class PauseMenu {
 
   private destroyPauseUI(): void {
     if (this.pauseContainer) {
-      this.pauseContainer.destroy();
+      this.pauseContainer.destroy(true);
       this.pauseContainer = undefined;
     }
   }
@@ -176,9 +299,19 @@ export class PauseMenu {
   }
 
   destroy(): void {
+    this.closeConfirm();
     this.destroyPauseUI();
-    if (this.escapeKey) {
-      this.escapeKey.removeAllListeners();
+    for (const key of this.keys) {
+      try {
+        key.removeAllListeners();
+      } catch {
+        // ignore
+      }
+    }
+    this.keys = [];
+    if (this.pauseButton) {
+      this.pauseButton.destroy();
+      this.pauseButton = undefined;
     }
   }
 }

@@ -5,6 +5,9 @@ import {
   BALA_KANDA_DIALOGUES,
 } from "../systems/DialogueSystem";
 import { AstraUI } from "../systems/AstraUI";
+import { PauseMenu } from "../systems/PauseMenu";
+import { LevelFlow } from "../utils/LevelFlow";
+import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
 
 /**
@@ -25,6 +28,7 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   private targets!: Phaser.Physics.Arcade.Group;
   private dialogueSystem!: DialogueSystem;
   private astraUI!: AstraUI;
+  private pauseMenu!: PauseMenu;
 
   // Game state
   private currentPhase: number = 1;
@@ -48,6 +52,8 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   }
 
   create(): void {
+    LevelFlow.markLevelStarted("Level03_BrothersTraining");
+    getGameSettings().applyBrightnessOverlay(this);
     const { width, height } = this.cameras.main;
 
     // Create training grounds background
@@ -81,6 +87,11 @@ export class Level03_BrothersTraining extends Phaser.Scene {
     // Initialize Astra UI
     this.astraUI = new AstraUI(this);
 
+    this.pauseMenu = new PauseMenu(this, {
+      levelKey: "Level03_BrothersTraining",
+      levelName: "Level 03 — Brothers' Training",
+    });
+
     // Create HUD
     this.createHUD();
 
@@ -98,6 +109,11 @@ export class Level03_BrothersTraining extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (this.pauseMenu?.isPausedState()) return;
+    if (this.dialogueSystem?.isDialogueActive()) {
+      this.player.setVelocityX(0);
+      return;
+    }
     this.player.update(time, delta);
     this.updateMovingTargets(time);
     this.updateArrowTargetHits(delta);

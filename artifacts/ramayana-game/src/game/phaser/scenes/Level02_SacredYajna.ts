@@ -22,6 +22,10 @@ import Phaser from "phaser";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { DialogueSystem, DialogueSequence } from "../systems/DialogueSystem";
 import { Player } from "../entities/Player";
+import { PauseMenu } from "../systems/PauseMenu";
+import { LevelFlow } from "../utils/LevelFlow";
+import { getGameSettings } from "../managers/GameSettings";
+import { getProgressionManager } from "../managers/LevelProgressionManager";
 
 export class Level02_SacredYajna extends Phaser.Scene {
   private player!: Player;
@@ -29,6 +33,7 @@ export class Level02_SacredYajna extends Phaser.Scene {
   private collectibles!: Phaser.Physics.Arcade.Group;
   private levelBuilder!: LevelBuilder;
   private dialogueSystem!: DialogueSystem;
+  private pauseMenu!: PauseMenu;
 
   // Game state
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -50,6 +55,8 @@ export class Level02_SacredYajna extends Phaser.Scene {
 
   create(): void {
     console.log("Level 2: Sacred Yajna - Started");
+    LevelFlow.markLevelStarted("Level02_SacredYajna");
+    getGameSettings().applyBrightnessOverlay(this);
 
     const { width, height } = this.cameras.main;
 
@@ -83,6 +90,12 @@ export class Level02_SacredYajna extends Phaser.Scene {
 
     // Setup collisions
     this.setupCollisions();
+
+    this.pauseMenu = new PauseMenu(this, {
+      levelKey: "Level02_SacredYajna",
+      levelName: "Level 02 — Sacred Yajna",
+    });
+    LevelFlow.createObjectiveHUD(this, "Collect all sacred offerings");
 
     // Show intro dialogue
     this.showIntroDialogue();
@@ -670,6 +683,11 @@ export class Level02_SacredYajna extends Phaser.Scene {
   }
 
   private completeLevel(): void {
+    // Persist completion (dharma scales with offerings gathered).
+    getProgressionManager().completeLevel(
+      "Level02_SacredYajna",
+      150 + this.itemsCollected * 15,
+    );
     // Show completion dialogue
     const completeSequence: DialogueSequence = {
       id: "level2_complete",
@@ -704,6 +722,7 @@ export class Level02_SacredYajna extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (this.pauseMenu?.isPausedState()) return;
     // Skip if dialogue is active
     if (this.dialogueSystem && this.dialogueSystem.isDialogueActive()) {
       this.player.setVelocityX(0);
