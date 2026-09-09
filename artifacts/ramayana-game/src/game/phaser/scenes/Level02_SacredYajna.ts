@@ -23,6 +23,7 @@ import { LevelBuilder } from "../utils/LevelBuilder";
 import { DialogueSystem, DialogueSequence } from "../systems/DialogueSystem";
 import { Player } from "../entities/Player";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
@@ -95,6 +96,8 @@ export class Level02_SacredYajna extends Phaser.Scene {
       levelKey: "Level02_SacredYajna",
       levelName: "Level 02 — Sacred Yajna",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
     LevelFlow.createObjectiveHUD(this, "Collect all sacred offerings");
 
     // Show intro dialogue

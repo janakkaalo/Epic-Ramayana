@@ -6,6 +6,7 @@ import type Phaser from "phaser";
 
 export type DifficultyId = "easy" | "normal" | "hard";
 export type TextSpeedId = "slow" | "normal" | "fast";
+export type MobileControlsId = "auto" | "on" | "off";
 
 export interface GameSettingsData {
   masterVolume: number; // 0..1
@@ -14,6 +15,7 @@ export interface GameSettingsData {
   brightness: number; // 0.5..1.3 (1 = default)
   difficulty: DifficultyId;
   textSpeed: TextSpeedId;
+  mobileControls: MobileControlsId;
   reducedMotion: boolean;
   screenShake: boolean;
   showFPS: boolean;
@@ -28,6 +30,7 @@ const DEFAULTS: GameSettingsData = {
   brightness: 1,
   difficulty: "normal",
   textSpeed: "normal",
+  mobileControls: "auto",
   reducedMotion: false,
   screenShake: true,
   showFPS: false,
@@ -101,6 +104,28 @@ export class GameSettingsManager {
       default:
         return 1;
     }
+  }
+
+  /** Whether on-screen touch controls should be shown. */
+  shouldShowTouchControls(): boolean {
+    if (this.data.mobileControls === "on") return true;
+    if (this.data.mobileControls === "off") return false;
+    // Auto: touch-capable device or narrow/coarse-pointer screen.
+    try {
+      if (typeof window === "undefined") return false;
+      const nav = window.navigator as Navigator & { maxTouchPoints?: number };
+      if (nav.maxTouchPoints && nav.maxTouchPoints > 0) return true;
+      if ("ontouchstart" in window) return true;
+      if (
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(pointer: coarse)").matches
+      ) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
   }
 
   getEffectiveMusicVolume(): number {
@@ -187,6 +212,13 @@ export class GameSettingsManager {
         parsed.textSpeed !== "fast"
       ) {
         this.data.textSpeed = DEFAULTS.textSpeed;
+      }
+      if (
+        parsed.mobileControls !== "auto" &&
+        parsed.mobileControls !== "on" &&
+        parsed.mobileControls !== "off"
+      ) {
+        this.data.mobileControls = DEFAULTS.mobileControls;
       }
     } catch {
       // corrupt save -> keep defaults

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { getGameSettings } from "../managers/GameSettings";
@@ -103,6 +104,8 @@ export class Level08_DivineBow extends Phaser.Scene {
       levelKey: "Level08_DivineBow",
       levelName: "Level 08 — The Divine Bow",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     this.input.keyboard?.on("keydown-SPACE", () => this.onAction());
     this.input.keyboard?.on("keydown-E", () => this.onAction());

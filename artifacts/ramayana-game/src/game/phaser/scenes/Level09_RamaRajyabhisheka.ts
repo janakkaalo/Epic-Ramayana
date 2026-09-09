@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { getGameSettings } from "../managers/GameSettings";
@@ -93,6 +94,8 @@ export class Level09_RamaRajyabhisheka extends Phaser.Scene {
       levelKey: "Level09_RamaRajyabhisheka",
       levelName: "Level 09 — Rama Rajyabhisheka Preparation",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     this.input.keyboard?.on("keydown-SPACE", () => this.tryTalk());
     this.input.keyboard?.on("keydown-E", () => this.tryTalk());

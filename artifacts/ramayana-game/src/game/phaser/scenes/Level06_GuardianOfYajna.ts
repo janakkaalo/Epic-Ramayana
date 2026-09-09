@@ -3,6 +3,7 @@ import { Player } from "../entities/Player";
 import { Enemy } from "../entities/Enemy";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { getGameSettings } from "../managers/GameSettings";
@@ -97,6 +98,8 @@ export class Level06_GuardianOfYajna extends Phaser.Scene {
       levelKey: "Level06_GuardianOfYajna",
       levelName: "Level 06 — Guardian of the Yajna",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     this.setupCombatEvents();
     this.startIntro();

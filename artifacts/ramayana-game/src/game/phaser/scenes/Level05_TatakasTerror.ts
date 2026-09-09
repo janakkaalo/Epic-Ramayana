@@ -3,6 +3,7 @@ import { Player } from "../entities/Player";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { AstraUI } from "../systems/AstraUI";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
@@ -72,6 +73,8 @@ export class Level05_TatakasTerror extends Phaser.Scene {
       levelKey: "Level05_TatakasTerror",
       levelName: "Level 05 — Tataka's Terror",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     // Create Tataka boss
     this.createTatakaBoss();

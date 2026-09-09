@@ -3,6 +3,7 @@ import {
   getGameSettings,
   DifficultyId,
   TextSpeedId,
+  MobileControlsId,
 } from "../managers/GameSettings";
 
 /**
@@ -50,8 +51,8 @@ export class SettingsScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    let y = 180;
-    const step = 56;
+    let y = 168;
+    const step = 46;
     const cx = width / 2;
 
     const snap = () => settings.get();
@@ -106,6 +107,23 @@ export class SettingsScene extends Phaser.Scene {
       () => snap().textSpeed,
       (v) => settings.set({ textSpeed: v }),
       (v) => `Dialogue speed: ${v}`,
+    );
+    y += step;
+
+    // Mobile controls cycle (Auto = show on touch devices)
+    this.addCycleRow<MobileControlsId>(
+      cx,
+      y,
+      "Mobile Controls",
+      ["auto", "on", "off"],
+      () => snap().mobileControls,
+      (v) => settings.set({ mobileControls: v }),
+      (v) =>
+        v === "auto"
+          ? "Auto: buttons appear on touch devices"
+          : v === "on"
+            ? "On: always show touch buttons"
+            : "Off: keyboard only",
     );
     y += step;
 

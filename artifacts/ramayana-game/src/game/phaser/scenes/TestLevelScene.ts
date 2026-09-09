@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { Enemy } from "../entities/Enemy";
 import { AstraUI } from "../systems/AstraUI";
+import { TouchControls } from "../systems/TouchControls";
 
 /**
  * TestLevelScene - Basic platforming test level
@@ -69,6 +70,9 @@ export class TestLevelScene extends Phaser.Scene {
 
     // Initialize Astra UI
     this.astraUI = new AstraUI(this);
+
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     // Unlock Agneyastra for testing
     this.astraUI.unlockAstra("AGNEYASTRA");

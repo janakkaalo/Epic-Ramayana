@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { getGameSettings } from "../managers/GameSettings";
@@ -121,6 +122,8 @@ export class Level10_PoisonedMind extends Phaser.Scene {
       levelKey: "Level10_PoisonedMind",
       levelName: "Level 10 — The Poisoned Mind",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
     this.drawWhisperMarks();
 
     this.dialogueSystem.startDialogue({

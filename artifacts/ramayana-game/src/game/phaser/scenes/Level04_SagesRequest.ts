@@ -7,6 +7,7 @@ import {
 } from "../systems/DialogueSystem";
 import { AstraUI } from "../systems/AstraUI";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
@@ -73,6 +74,8 @@ export class Level04_SagesRequest extends Phaser.Scene {
       levelKey: "Level04_SagesRequest",
       levelName: "Level 04 — Sage's Request",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     // Create HUD
     this.createHUD();

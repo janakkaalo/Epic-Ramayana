@@ -49,6 +49,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private readonly meleeRange: number = 95;
   private readonly meleeDamage: number = 45;
 
+  // Touch controls state (driven by TouchControls on-screen gamepad)
+  private touchMove: -1 | 0 | 1 = 0;
+  private touchJumpHeld: boolean = false;
+  private touchJumpQueued: boolean = false;
+  private touchRun: boolean = false;
+  private touchAimHeld: boolean = false;
+  private touchMeleeQueued: boolean = false;
+
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "rama-spritesheet", "0");
 
@@ -254,10 +262,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.hasDoubleJumped = false;
     }
 
-    // Handle aiming mode
-    if (this.keyAim.isDown && !this.isAiming) {
+    // Handle aiming mode (keyboard SPACE or touch BOW button)
+    const aimHeld = this.keyAim.isDown || this.touchAimHeld;
+    if (aimHeld && !this.isAiming) {
       this.enterAimMode();
-    } else if (this.keyAim.isUp && this.isAiming) {
+    } else if (!aimHeld && this.isAiming) {
       this.exitAimMode();
     }
 
@@ -271,7 +280,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Handle melee attack input when not aiming.
-    if (Phaser.Input.Keyboard.JustDown(this.keyMelee)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keyMelee) || this.consumeTouchMelee()) {
       this.performMeleeAttack();
     }
 
@@ -289,12 +298,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body: Phaser.Physics.Arcade.Body,
     onGround: boolean,
   ): void {
-    const speed = this.keyRun.isDown
+    const running = this.keyRun.isDown || this.touchRun;
+    const speed = running
       ? GAME_CONFIG.PLAYER.RUN_SPEED
       : GAME_CONFIG.PLAYER.WALK_SPEED;
-    this.isRunning = this.keyRun.isDown;
+    this.isRunning = running;
 
-    if (this.cursors.left.isDown) {
+    const left = this.cursors.left.isDown || this.touchMove < 0;
+    const right = this.cursors.right.isDown || this.touchMove > 0;
+
+    if (left && !right) {
       body.setVelocityX(-speed);
       this.isFacingRight = false;
       this.setFlipX(true);
@@ -302,7 +315,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (onGround) {
         this.emitDustIfNeeded();
       }
-    } else if (this.cursors.right.isDown) {
+    } else if (right && !left) {
       body.setVelocityX(speed);
       this.isFacingRight = true;
       this.setFlipX(false);
@@ -332,8 +345,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body: Phaser.Physics.Arcade.Body,
     onGround: boolean,
   ): void {
+    const jumpHeld = this.cursors.up.isDown || this.touchJumpHeld;
     // Jump
-    if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.up) || this.consumeTouchJump()) {
       if (onGround) {
         body.setVelocityY(this.jumpVelocity);
       } else if (this.canDoubleJump && !this.hasDoubleJumped) {
@@ -343,7 +357,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Variable jump height (release jump key early = shorter jump)
-    if (this.cursors.up.isUp && body.velocity.y < 0) {
+    if (!jumpHeld && body.velocity.y < 0) {
       body.setVelocityY(body.velocity.y * 0.5);
     }
   }
@@ -598,6 +612,64 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   // Get the bow instance for accessing arrows
   getBow(): Bow {
     return this.bow;
+  }
+
+  // ---- Touch controls API (on-screen gamepad drives these) ----
+
+  /** -1 = left, 0 = none, 1 = right. Call on press AND release. */
+  setTouchMove(dir: -1 | 0 | 1): void {
+    this.touchMove = dir;
+  }
+
+  /** Held state of the touch JUMP button (variable jump height). */
+  setTouchJumpHeld(held: boolean): void {
+    this.touchJumpHeld = held;
+  }
+
+  /** Queue a single jump (edge trigger, consumed by update). */
+  queueTouchJump(): void {
+    this.touchJumpQueued = true;
+    this.touchJumpHeld = true;
+  }
+
+  private consumeTouchJump(): boolean {
+    if (!this.touchJumpQueued) return false;
+    this.touchJumpQueued = false;
+    return true;
+  }
+
+  /** RUN toggle state from the touch gamepad. */
+  setTouchRun(running: boolean): void {
+    this.touchRun = running;
+  }
+
+  isTouchRun(): boolean {
+    return this.touchRun;
+  }
+
+  /** Held state of the touch BOW (aim) button. */
+  setTouchAimHeld(held: boolean): void {
+    this.touchAimHeld = held;
+  }
+
+  /** Queue a single sword slash (edge trigger, consumed by update). */
+  queueTouchMelee(): void {
+    this.touchMeleeQueued = true;
+  }
+
+  private consumeTouchMelee(): boolean {
+    if (!this.touchMeleeQueued) return false;
+    this.touchMeleeQueued = false;
+    return true;
+  }
+
+  /** Clear all touch state (scene shutdown / pause). */
+  clearTouchState(): void {
+    this.touchMove = 0;
+    this.touchJumpHeld = false;
+    this.touchJumpQueued = false;
+    this.touchAimHeld = false;
+    this.touchMeleeQueued = false;
   }
 
   // Override destroy to cleanup bow

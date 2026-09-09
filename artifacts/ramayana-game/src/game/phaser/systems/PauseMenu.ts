@@ -90,6 +90,7 @@ export class PauseMenu {
       // ignore
     }
     this.createPauseUI();
+    this.scene.events.emit("pausemenu-open");
   }
 
   resume(): void {
@@ -107,6 +108,7 @@ export class PauseMenu {
     } catch {
       // ignore
     }
+    this.scene.events.emit("pausemenu-close");
   }
 
   private createPauseUI(): void {
@@ -118,7 +120,12 @@ export class PauseMenu {
 
     const overlay = this.scene.add
       .rectangle(0, 0, width, height, 0x000000, 0.72)
-      .setOrigin(0);
+      .setOrigin(0)
+      .setInteractive();
+    // Swallow touches so on-screen gamepad buttons underneath can't fire.
+    overlay.on("pointerdown", () => {
+      // Intentionally empty — blocks fall-through.
+    });
     this.pauseContainer.add(overlay);
 
     const title = this.scene.add

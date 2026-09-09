@@ -6,6 +6,7 @@ import {
 } from "../systems/DialogueSystem";
 import { AstraUI } from "../systems/AstraUI";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { getGameSettings } from "../managers/GameSettings";
 import { getProgressionManager } from "../managers/LevelProgressionManager";
@@ -91,6 +92,8 @@ export class Level03_BrothersTraining extends Phaser.Scene {
       levelKey: "Level03_BrothersTraining",
       levelName: "Level 03 — Brothers' Training",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     // Create HUD
     this.createHUD();

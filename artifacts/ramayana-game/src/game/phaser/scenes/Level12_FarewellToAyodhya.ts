@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { DialogueSystem } from "../systems/DialogueSystem";
 import { PauseMenu } from "../systems/PauseMenu";
+import { TouchControls } from "../systems/TouchControls";
 import { LevelFlow } from "../utils/LevelFlow";
 import { LevelBuilder } from "../utils/LevelBuilder";
 import { getGameSettings } from "../managers/GameSettings";
@@ -90,6 +91,8 @@ export class Level12_FarewellToAyodhya extends Phaser.Scene {
       levelKey: "Level12_FarewellToAyodhya",
       levelName: "Level 12 — Farewell to Ayodhya",
     });
+    // On-screen gamepad for touch devices (hidden unless enabled in Settings).
+    new TouchControls(this, this.player);
 
     this.dialogueSystem.startDialogue({
       id: "level12_intro",
